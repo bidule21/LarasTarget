@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Class-Path: commons-lang3-3.5.jar pi4j-core-1.1.jar commons-io-2.4.jar
+  pi4j-device-1.1.jar pi4j-core-1.1.jar pi4j-gpio-extension-1.1.jar lo
+ g4j-1.2.17.jar javaee-api-5.0-2.jar joda-time-2.9.4.jar
+Main-Class: de.flashheart.lara.Main
+
