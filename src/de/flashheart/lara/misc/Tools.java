@@ -1,6 +1,6 @@
 package de.flashheart.lara.misc;
 
-import com.pi4j.gpio.extension.mcp.MCP23017Pin;
+
 import com.pi4j.io.gpio.Pin;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -116,48 +116,6 @@ public class Tools {
 
     }
 
-
-    public static Pin getPinByName(String provider, String pinname) {
-        if (provider.equalsIgnoreCase("mcp23017")) {
-            switch (pinname) {
-                case "gpio_a0":
-                    return MCP23017Pin.GPIO_A0;
-                case "gpio_a1":
-                    return MCP23017Pin.GPIO_A1;
-                case "gpio_a2":
-                    return MCP23017Pin.GPIO_A2;
-                case "gpio_a3":
-                    return MCP23017Pin.GPIO_A3;
-                case "gpio_a4":
-                    return MCP23017Pin.GPIO_A4;
-                case "gpio_a5":
-                    return MCP23017Pin.GPIO_A5;
-                case "gpio_a6":
-                    return MCP23017Pin.GPIO_A6;
-                case "gpio_a7":
-                    return MCP23017Pin.GPIO_A7;
-                case "gpio_b0":
-                    return MCP23017Pin.GPIO_B0;
-                case "gpio_b1":
-                    return MCP23017Pin.GPIO_B1;
-                case "gpio_b2":
-                    return MCP23017Pin.GPIO_B2;
-                case "gpio_b3":
-                    return MCP23017Pin.GPIO_B3;
-                case "gpio_b4":
-                    return MCP23017Pin.GPIO_B4;
-                case "gpio_b5":
-                    return MCP23017Pin.GPIO_B5;
-                case "gpio_b6":
-                    return MCP23017Pin.GPIO_B6;
-                case "gpio_b7":
-                    return MCP23017Pin.GPIO_B7;
-                default:
-                    return null;
-            }
-        }
-        return null;
-    }
 
     public static String getMissionboxDirectory() {
         return (isArm() ? "/home/pi" : System.getProperty("user.home")) + File.separator + "missionbox";
