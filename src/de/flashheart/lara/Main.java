@@ -1,17 +1,17 @@
 package de.flashheart.lara;
 
 import com.pi4j.io.gpio.*;
+import de.flashheart.lara.misc.SortedProperties;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 
 public class Main {
     public static GpioController GPIO;
-
+    private static SortedProperties config;
 
     public static long HEALTH = 1000l;
     public static long DAMAGE_PER_HIT = 1l;
@@ -33,14 +33,14 @@ public class Main {
     private static Pin pinBlue;
 
 
-
-
     public static void main(String[] args) throws Exception {
-
+        // init log4j (auch log4j.properties wirkt sich hier aus)
         System.setProperty("logs", Tools.getMissionboxDirectory());
-
         logger = Logger.getLogger("Main");
         logger.setLevel(logLevel);
+
+        // init config
+        initConfig();
 
         initRaspi();
 
@@ -88,10 +88,16 @@ public class Main {
                 "                                                                                             ");
     }
 
+    private static void initConfig() {
+        config = new SortedProperties();
+        // todo: configreader needed
+        config.put("vibeSensor1", "GPIO 4");
+    }
+
     private static void initRaspi() throws Exception {
         GPIO = GpioFactory.getInstance();
 
-        pinVibeSensor1 = RaspiPin.GPIO_04;
+        pinVibeSensor1 = RaspiPin.getPinByName(config.getProperty("vibeSensor1"));
 
 //        pinRed = RaspiPin.GPIO_00;
 //        pinGreen = RaspiPin.GPIO_03;
@@ -102,7 +108,7 @@ public class Main {
 //        GpioPinPwmOutput pwmBlue = GPIO.provisionSoftPwmOutputPin(pinBlue);
 
         vibeSensor1 = GPIO.provisionDigitalInputPin(pinVibeSensor1, "vibeSensor1", PinPullResistance.PULL_DOWN);
-        vibeSensor1.setDebounce(15, PinState.LOW);
+        vibeSensor1.setDebounce(15, PinState.LOW, PinState.HIGH);
 
 
 
@@ -117,7 +123,6 @@ public class Main {
 //        pwmBlue.setPwm(0);
 
     }
-
 
 
 }
