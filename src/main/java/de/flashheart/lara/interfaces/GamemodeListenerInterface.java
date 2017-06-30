@@ -1,4 +1,4 @@
-package main.java.de.flashheart.lara.interfaces;
+package de.flashheart.lara.interfaces;
 
 
 

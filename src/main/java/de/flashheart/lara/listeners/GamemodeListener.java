@@ -1,14 +1,16 @@
-package main.java.de.flashheart.lara.listeners;
+package de.flashheart.lara.listeners;
 
 
-import main.java.de.flashheart.lara.interfaces.GamemodeListenerInterface;
+import de.flashheart.lara.interfaces.GamemodeListenerInterface;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by tloehr on 29.06.17.
  */
 public class GamemodeListener implements GamemodeListenerInterface
 {
-
     public static final int GAME_PRE_GAME = 0;
     public static final int GAME_ABOUT_TO_RUN = 1;
     public static final int GAME_RUNNING = 2;

@@ -1,8 +1,8 @@
-package main.java.de.flashheart.lara.handlers;
+package de.flashheart.lara.handlers;
 
 
 
-import main.java.de.flashheart.lara.interfaces.PercentageInterface;
+import de.flashheart.lara.interfaces.PercentageInterface;
 
 import java.math.BigDecimal;
 

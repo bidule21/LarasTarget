@@ -1,6 +1,6 @@
-package main.java.de.flashheart.lara.handlers;
+package de.flashheart.lara.handlers;
 
-import main.java.de.flashheart.lara.interfaces.PercentageInterface;
+import de.flashheart.lara.interfaces.PercentageInterface;
 import org.apache.log4j.Logger;
 
 import java.awt.*;

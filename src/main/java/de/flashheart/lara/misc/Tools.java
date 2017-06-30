@@ -1,7 +1,6 @@
-package main.java.de.flashheart.lara.misc;
+package de.flashheart.lara.misc;
 
 
-import com.pi4j.io.gpio.Pin;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -15,54 +14,6 @@ import java.util.ResourceBundle;
  */
 public class Tools {
 
-    public static final String SND_WELCOME = "0140_female1_OnWelcome_1.wav";
-    public static final String SND_SIREN = "capture_siren.wav";
-    public static final String SND_FLARE = "MP_flare.wav";
-    public static final String SND_SHUTDOWN = "Shutdown.wav";
-    public static final String SND_MINIONS_SPAWNED = "0112_female1_OnMinionsSpawn_1.wav";
-    public static final String SND_VICTORY = "0134_female1_OnVictory_1.wav";
-    public static final String SND_DEFEAT = "0071_female1_OnDefeat_1.wav";
-    public static final String SND_LOSER = "loser.wav";
-    public static final String SND_MIB = "mib.wav";
-    public static final String SND_QUEEN = "we-will-rock-you.wav";
-    public static final String SND_SKYFALL = "skyfall1.wav";
-    public static final String SND_TRANQUILITY = "tranquillity-mono.wav";
-    public static final String SND_SIRIUS = "sirius.wav";
-    public static final String SND_ZZTOP = "zztop.wav";
-    public static final String SND_EVERYBODY_DANCE_NOW = "gonna_make_you_sweat.wav";
-    public static final String SND_WHO_WANTS_TO_LIVE_FOREVER = "who-wants-to-live-forever.wav";
-    public static final String SND_BE_HAPPY = "be-happy.wav";
-
-    public static final String[] COUNTDOWN = new String[]{"10.wav", "09.wav", "08.wav", "07.wav", "06.wav", "05.wav", "04.wav", "03.wav", "02.wav", "01.wav", "00.wav"};
-
-    public static final String SND_20_MINUTES = "20-minutes.wav";
-    public static final String SND_10_MINUTES = "10-minutes.wav";
-    public static final String SND_5_MINUTES = "05-minutes.wav";
-    public static final String SND_4_MINUTES = "04-minutes.wav";
-    public static final String SND_3_MINUTES = "03-minutes.wav";
-    public static final String SND_2_MINUTES = "02-minutes.wav";
-    public static final String SND_1_MINUTE = "01-minute.wav";
-    public static final String SND_30_SECONDS = "30-seconds.wav";
-    public static final String SND_20_SECONDS = "20-seconds.wav";
-    public static final String SND_10_SECONDS = "10-seconds.wav";
-
-
-    public static final String[] WINNING_SONGS = new String[]{SND_MIB, SND_QUEEN};
-    public static final String[] LOSING_SONGS = new String[]{SND_LOSER};
-
-
-    public static final Icon icon22ledOrangeOn = new ImageIcon(Tools.class.getResource("/artwork/22x22/ledorange.png"));
-    public static final Icon icon22ledOrangeOff = new ImageIcon(Tools.class.getResource("/artwork/22x22/leddarkorange.png"));
-    public static final Icon icon22ledPurpleOff = new ImageIcon(Tools.class.getResource("/artwork/22x22/leddarkpurple.png"));
-    public static final Icon icon22ledPurpleOn = new ImageIcon(Tools.class.getResource("/artwork/22x22/ledpurple.png"));
-    public static final Icon icon22ledBlueOff = new ImageIcon(Tools.class.getResource("/artwork/22x22/leddarkblue.png"));
-    public static final Icon icon22ledBlueOn = new ImageIcon(Tools.class.getResource("/artwork/22x22/ledblue.png"));
-    public static final Icon icon22ledGreenOff = new ImageIcon(Tools.class.getResource("/artwork/22x22/leddarkgreen.png"));
-    public static final Icon icon22ledGreenOn = new ImageIcon(Tools.class.getResource("/artwork/22x22/ledgreen.png"));
-    public static final Icon icon22ledYellowOff = new ImageIcon(Tools.class.getResource("/artwork/22x22/leddarkyellow.png"));
-    public static final Icon icon22ledYellowOn = new ImageIcon(Tools.class.getResource("/artwork/22x22/ledyellow.png"));
-    public static final Icon icon22ledRedOff = new ImageIcon(Tools.class.getResource("/artwork/22x22/leddarkred.png"));
-    public static final Icon icon22ledRedOn = new ImageIcon(Tools.class.getResource("/artwork/22x22/ledred.png"));
 
 
     public static String xx(String message) {
@@ -99,13 +50,7 @@ public class Tools {
 
     }
 
-    // http://www.mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
-    public static boolean isArm() {
 
-        String os = System.getProperty("os.arch").toLowerCase();
-        return (os.indexOf("arm") >= 0);
-
-    }
 
     // http://www.mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
     public static boolean isUnix() {
@@ -117,9 +62,6 @@ public class Tools {
     }
 
 
-    public static String getMissionboxDirectory() {
-        return (isArm() ? "/home/pi" : System.getProperty("user.home")) + File.separator + "missionbox";
-    }
 
 
     public static int parseInt(String input, int min, int max, int previous) {
@@ -156,13 +98,24 @@ public class Tools {
         return time < 0l ? "--" : new DateTime(time, DateTimeZone.UTC).toString(pattern);
     }
 
+    public static String getWorkingPath() {
+        return (isArm() ? "/home/pi" : System.getProperty("user.home")) + File.separator + "larastarget";
+    }
+
+    // http://www.mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
+    public static boolean isArm() {
+
+        String os = System.getProperty("os.arch").toLowerCase();
+        return (os.indexOf("arm") >= 0);
+
+    }
 
     public static String formatLongTime(long time) {
         return formatLongTime(time, "mm:ss,SSS");
     }
 
     public static String getSoundPath() {
-        return getMissionboxDirectory() + File.separator + "sounds";
+        return getWorkingPath() + File.separator + "sounds";
     }
 //
 //    public static String getWinningSong() {

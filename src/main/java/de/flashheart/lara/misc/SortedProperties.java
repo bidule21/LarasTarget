@@ -1,4 +1,4 @@
-package main.java.de.flashheart.lara.misc;
+package de.flashheart.lara.misc;
 
 import java.util.*;
 

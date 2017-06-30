@@ -1,6 +1,4 @@
-package main.java.de.flashheart.lara.interfaces;
-
-import main.java.de.flashheart.lara.interfaces.MessageEvent;
+package de.flashheart.lara.interfaces;
 
 import java.util.EventListener;
 

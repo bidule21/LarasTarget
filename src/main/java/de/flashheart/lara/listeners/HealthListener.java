@@ -1,7 +1,8 @@
-package main.java.de.flashheart.lara.listeners;
+package de.flashheart.lara.listeners;
 
 
-import main.java.de.flashheart.lara.interfaces.HealthListenerInterface;
+
+import de.flashheart.lara.interfaces.HealthListenerInterface;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 

@@ -1,4 +1,4 @@
-package main.java.de.flashheart.lara.listeners;
+package de.flashheart.lara.listeners;
 
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent;
