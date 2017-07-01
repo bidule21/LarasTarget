@@ -1,7 +1,6 @@
 package de.flashheart.lara.interfaces;
 
 
-
 import java.util.EventListener;
 
 /**
@@ -9,6 +8,10 @@ import java.util.EventListener;
  */
 public interface GamemodeListenerInterface extends EventListener {
     void targetDestroyed();
+
     void targetDefended();
+
     void gamemodeButtonPressed();
+
+    void startGame();
 }

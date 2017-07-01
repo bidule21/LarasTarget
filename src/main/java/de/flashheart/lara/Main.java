@@ -6,10 +6,13 @@ import de.flashheart.lara.listeners.HealthListener;
 import de.flashheart.lara.listeners.VibesensorListener;
 import de.flashheart.lara.misc.SortedProperties;
 import de.flashheart.lara.misc.Tools;
+import de.flashheart.lara.swing.FrameDebug;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
+
+import javax.swing.*;
 
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
@@ -73,8 +76,8 @@ public class Main {
 
         // init config
         initCommon();
-
-        initRaspi();
+        initSwingFrame();
+//        initRaspi();
 
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             public void run() {
@@ -134,36 +137,12 @@ public class Main {
 
 
         try {
-            // Grab the Scheduler instance from the Factory
             scheduler = StdSchedulerFactory.getDefaultScheduler();
-
-
-            // and start it off
             scheduler.start();
-
-            // define the job and tie it to our HelloJob class
-            JobDetail job = newJob()
-                    .withIdentity("job1", "group1")
-                    .build();
-
-            // Trigger the job to run now, and then repeat every 40 seconds
-            Trigger trigger = newTrigger()
-                    .withIdentity("trigger1", "group1")
-                    .startNow()
-                    .withSchedule(simpleSchedule()
-                            .withIntervalInSeconds(40)
-                            .repeatForever())
-                    .build();
-
-            // Tell quartz to schedule the job using our trigger
-            scheduler.scheduleJob(job, trigger);
-
-
-
-
-
+            scheduler.getContext().put("loglevel", logLevel);
         } catch (SchedulerException se) {
-            se.printStackTrace();
+            logger.fatal(se);
+            System.exit(0);
         }
 
     }
@@ -173,11 +152,16 @@ public class Main {
 
         VibesensorListener vibesensorListener = new VibesensorListener(logLevel, HEALTH_CHANGE_PER_HIT);
         HealthListener healthListener = new HealthListener(logLevel, HEALTH);
-        GamemodeListener gamemodeListener = new GamemodeListener(0, 1000);
+        GamemodeListener gamemodeListener = new GamemodeListener(scheduler, 1000);
 
         vibesensorListener.addListener(healthListener);
         healthListener.addListener(gamemodeListener);
-        
+
+        FrameDebug frameDebug = new FrameDebug(gamemodeListener);
+        frameDebug.pack();
+        frameDebug.setVisible(true);
+        frameDebug.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+
     }
 
 
@@ -198,7 +182,7 @@ public class Main {
 
         VibesensorListener vibesensorListener = new VibesensorListener(logLevel, HEALTH_CHANGE_PER_HIT);
         HealthListener healthListener = new HealthListener(logLevel, HEALTH);
-        GamemodeListener gamemodeListener = new GamemodeListener(0, 1000);
+        GamemodeListener gamemodeListener = new GamemodeListener(scheduler, 1000);
 
         vibesensorListener.addListener(healthListener);
         healthListener.addListener(gamemodeListener);
