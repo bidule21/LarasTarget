@@ -2,21 +2,17 @@ package de.flashheart.lara;
 
 import com.pi4j.io.gpio.*;
 import de.flashheart.lara.listeners.GamemodeListener;
-import de.flashheart.lara.listeners.HealthListener;
 import de.flashheart.lara.listeners.VibesensorListener;
-import de.flashheart.lara.misc.SortedProperties;
-import de.flashheart.lara.misc.Tools;
+import de.flashheart.lara.tools.SortedProperties;
+import de.flashheart.lara.tools.Tools;
 import de.flashheart.lara.swing.FrameDebug;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.quartz.*;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.swing.*;
-
-import static org.quartz.JobBuilder.newJob;
-import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
-import static org.quartz.TriggerBuilder.newTrigger;
 
 public class Main {
     public static GpioController GPIO;
@@ -37,10 +33,10 @@ public class Main {
     private static StringBuffer csv = new StringBuffer(100000);
     private static GpioPinDigitalInput vibeSensor1;
 
-    private static Pin pinVibeSensor1;
-    private static Pin pinRed;
-    private static Pin pinGreen;
-    private static Pin pinBlue;
+    private static VibesensorListener vibesensorListener;
+    private static GamemodeListener gamemodeListener;
+
+
 
     /**
      * ## Large headline
@@ -77,7 +73,7 @@ public class Main {
         // init config
         initCommon();
         initSwingFrame();
-//        initRaspi();
+        initRaspi();
 
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             public void run() {
@@ -121,23 +117,26 @@ public class Main {
 //
 //        }
 
-        logger.debug("\n" +
-                "  ____   ___   ___   ___   ___   ___   ___  __  __ __  __ __  __ __  __ __  __ __  __ __  __ \n" +
-                " | __ ) / _ \\ / _ \\ / _ \\ / _ \\ / _ \\ / _ \\|  \\/  |  \\/  |  \\/  |  \\/  |  \\/  |  \\/  |  \\/  |\n" +
-                " |  _ \\| | | | | | | | | | | | | | | | | | | |\\/| | |\\/| | |\\/| | |\\/| | |\\/| | |\\/| | |\\/| |\n" +
-                " | |_) | |_| | |_| | |_| | |_| | |_| | |_| | |  | | |  | | |  | | |  | | |  | | |  | | |  | |\n" +
-                " |____/ \\___/ \\___/ \\___/ \\___/ \\___/ \\___/|_|  |_|_|  |_|_|  |_|_|  |_|_|  |_|_|  |_|_|  |_|\n" +
-                "                                                                                             ");
+
     }
 
-    private static void initCommon() {
+    private static void initCommon() throws Exception {
         config = new SortedProperties();
         // todo: configreader needed
         config.put("vibeSensor1", "GPIO 4");
+        config.put("HEALTH_CHANGE_PER_HIT", "-1");
+        config.put("GAME_LENGTH_IN_SECONDS", "60");
+        config.put("DELAY_BEFORE_GAME_STARTS_IN_SECONDS", "5");
 
+
+        VibesensorListener vibesensorListener = new VibesensorListener(logLevel, HEALTH_CHANGE_PER_HIT);
+        GamemodeListener gamemodeListener = new GamemodeListener(scheduler, 5, 10, 10l);
+
+        vibesensorListener.addListener(gamemodeListener);
 
         try {
             scheduler = StdSchedulerFactory.getDefaultScheduler();
+            
             scheduler.start();
             scheduler.getContext().put("loglevel", logLevel);
         } catch (SchedulerException se) {
@@ -150,14 +149,7 @@ public class Main {
     private static void initSwingFrame() throws Exception {
         if (Tools.isArm()) return;
 
-        VibesensorListener vibesensorListener = new VibesensorListener(logLevel, HEALTH_CHANGE_PER_HIT);
-        HealthListener healthListener = new HealthListener(logLevel, HEALTH);
-        GamemodeListener gamemodeListener = new GamemodeListener(scheduler, 1000);
-
-        vibesensorListener.addListener(healthListener);
-        healthListener.addListener(gamemodeListener);
-
-        FrameDebug frameDebug = new FrameDebug(gamemodeListener);
+        FrameDebug frameDebug = new FrameDebug(gamemodeListener, HEALTH_CHANGE_PER_HIT);
         frameDebug.pack();
         frameDebug.setVisible(true);
         frameDebug.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -169,39 +161,47 @@ public class Main {
         if (!Tools.isArm()) return;
         GPIO = GpioFactory.getInstance();
 
-        pinVibeSensor1 = RaspiPin.getPinByName(config.getProperty("vibeSensor1"));
+        Pin pinRed = RaspiPin.GPIO_00;
+        Pin pinGreen = RaspiPin.GPIO_03;
+        Pin pinBlue = RaspiPin.GPIO_05;
 
-//        pinRed = RaspiPin.GPIO_00;
-//        pinGreen = RaspiPin.GPIO_03;
-//        pinBlue = RaspiPin.GPIO_05;
-//
-//        GpioPinPwmOutput pwmRed = GPIO.provisionSoftPwmOutputPin(pinRed);
-//        GpioPinPwmOutput pwmGreen = GPIO.provisionSoftPwmOutputPin(pinGreen);
-//        GpioPinPwmOutput pwmBlue = GPIO.provisionSoftPwmOutputPin(pinBlue);
+        GpioPinPwmOutput pwmRed = GPIO.provisionSoftPwmOutputPin(pinRed);
+        GpioPinPwmOutput pwmGreen = GPIO.provisionSoftPwmOutputPin(pinGreen);
+        GpioPinPwmOutput pwmBlue = GPIO.provisionSoftPwmOutputPin(pinBlue);
 
+        scheduler.getContext().put("pwmRed", pwmRed);
+        scheduler.getContext().put("pwmGreen", pwmGreen);
+        scheduler.getContext().put("pwmBlue", pwmBlue);
 
-        VibesensorListener vibesensorListener = new VibesensorListener(logLevel, HEALTH_CHANGE_PER_HIT);
-        HealthListener healthListener = new HealthListener(logLevel, HEALTH);
-        GamemodeListener gamemodeListener = new GamemodeListener(scheduler, 1000);
-
-        vibesensorListener.addListener(healthListener);
-        healthListener.addListener(gamemodeListener);
-
-
+        Pin pinVibeSensor1 = RaspiPin.getPinByName(config.getProperty("vibeSensor1"));
         vibeSensor1 = GPIO.provisionDigitalInputPin(pinVibeSensor1, "vibeSensor1", PinPullResistance.PULL_DOWN);
         vibeSensor1.setDebounce(15, PinState.LOW, PinState.HIGH);
         vibeSensor1.addListener();
+        vibeSensor1.addListener(vibesensorListener);
 
+        pwmRed.setPwm(255);
+        pwmGreen.setPwm(0);
+        pwmBlue.setPwm(0);
+
+        Thread.sleep(3000);
+
+        pwmRed.setPwm(0);
+        pwmGreen.setPwm(255);
+        pwmBlue.setPwm(0);
+
+        Thread.sleep(3000);
+
+        pwmRed.setPwm(0);
+        pwmGreen.setPwm(0);
+        pwmBlue.setPwm(255);
+
+        Thread.sleep(3000);
 
         // you can optionally use these wiringPi methods to further customize the PWM generator
         // see: http://wiringpi.com/reference/raspberry-pi-specifics/
 //        com.pi4j.wiringpi.Gpio.pwmSetMode(com.pi4j.wiringpi.Gpio.PWM_MODE_MS);
 //        com.pi4j.wiringpi.Gpio.pwmSetRange(255);
 //        com.pi4j.wiringpi.Gpio.pwmSetClock(500);
-//
-//        pwmRed.setPwm(255);
-//        pwmGreen.setPwm(0);
-//        pwmBlue.setPwm(0);
 
     }
 

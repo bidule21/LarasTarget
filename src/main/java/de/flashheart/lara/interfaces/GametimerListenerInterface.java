@@ -5,6 +5,6 @@ import java.util.EventListener;
 /**
  * Created by tloehr on 29.06.17.
  */
-public interface HealthListenerInterface extends EventListener {
+public interface GametimerListenerInterface extends EventListener {
     void healthChangedBy(long deltaHealth);
 }

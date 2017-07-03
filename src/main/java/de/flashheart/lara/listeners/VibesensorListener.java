@@ -14,7 +14,7 @@ import java.util.List;
  */
 public class VibesensorListener implements GpioPinListenerDigital {
     private final long HEALTH_CHANGE_PER_HIT;
-    private List<HealthListener> listeners = new ArrayList<>();
+    private List<GamemodeListener> listeners = new ArrayList<>();
     Logger logger = Logger.getLogger(getClass());
 
     public VibesensorListener(Level level, long healthChangePerHit) {
@@ -23,8 +23,8 @@ public class VibesensorListener implements GpioPinListenerDigital {
         logger.setLevel(level);
     }
 
-    public void addListener(HealthListener healthListener) {
-        listeners.add(healthListener);
+    public void addListener(GamemodeListener gamemodeListener) {
+        listeners.add(gamemodeListener);
     }
 
     @Override
@@ -33,8 +33,8 @@ public class VibesensorListener implements GpioPinListenerDigital {
 
         if (event.getState() == PinState.HIGH) {
             logger.debug("Damage detected");
-            for (HealthListener hl : listeners) {
-                hl.healthChangedBy(HEALTH_CHANGE_PER_HIT);
+            for (GamemodeListener gl : listeners) {
+                gl.healthChangedBy(HEALTH_CHANGE_PER_HIT);
             }
         }
     }

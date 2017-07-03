@@ -13,17 +13,18 @@ import java.awt.event.ActionListener;
 public class FrameDebug extends JFrame {
 
     private final GamemodeListener gamemodeListener;
+    private final long HEALTH_CHANGE_PER_HIT;
 
-    public FrameDebug(GamemodeListener gamemodeListener) throws HeadlessException {
+    public FrameDebug(GamemodeListener gamemodeListener, long HEALTH_CHANGE_PER_HIT) throws HeadlessException {
         super("Lara's Target Debug Window");
         this.gamemodeListener = gamemodeListener;
-        setLayout(new BorderLayout());
+        this.HEALTH_CHANGE_PER_HIT = HEALTH_CHANGE_PER_HIT;
+        setLayout(new FlowLayout());
         JButton btn = new JButton("GameModeButton");
-        btn.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                gamemodeListener.gamemodeButtonPressed();
-            }
-        });
+        btn.addActionListener(e -> gamemodeListener.gamemodeButtonPressed());
+        add(btn);
+        JButton btn2 = new JButton("Hit");
+        btn2.addActionListener(e -> gamemodeListener.healthChangedBy(HEALTH_CHANGE_PER_HIT));
+        add(btn2);
     }
 }
