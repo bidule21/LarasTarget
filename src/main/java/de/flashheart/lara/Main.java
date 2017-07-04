@@ -1,28 +1,35 @@
 package de.flashheart.lara;
 
 import com.pi4j.io.gpio.*;
+import de.flashheart.lara.jobs.PinHandlerRGBJob;
 import de.flashheart.lara.listeners.GamemodeListener;
 import de.flashheart.lara.listeners.VibesensorListener;
+import de.flashheart.lara.swing.FrameDebug;
+import de.flashheart.lara.tools.MyGpioPinPwmOutput;
+import de.flashheart.lara.tools.RGBBean;
 import de.flashheart.lara.tools.SortedProperties;
 import de.flashheart.lara.tools.Tools;
-import de.flashheart.lara.swing.FrameDebug;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.quartz.Scheduler;
-import org.quartz.SchedulerException;
+import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.swing.*;
+import java.util.ArrayList;
+
+import static org.quartz.JobBuilder.newJob;
+import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
+import static org.quartz.TriggerBuilder.newTrigger;
 
 public class Main {
     public static GpioController GPIO;
     private static SortedProperties config;
 
-    public static long HEALTH = 1000l;
-    public static long HEALTH_CHANGE_PER_HIT = -1l;
+    //    public static long HEALTH = 1000l;
+//    public static long HEALTH_CHANGE_PER_HIT = -1l;
     public static long MILLIS_WITHOUT_HIT_BEFORE_RECOVERING = 10000l;
     public static long RECOVERING_HEALTH_PER_SECOND = 10l;    // auf 0 setzen, wenn nicht heilen soll
-    private static long health = HEALTH;
+//    private static long health = HEALTH;
 
     private static long lasthit = Long.MAX_VALUE;
     private static long lastrecover = 0l;
@@ -35,7 +42,6 @@ public class Main {
 
     private static VibesensorListener vibesensorListener;
     private static GamemodeListener gamemodeListener;
-
 
 
     /**
@@ -121,22 +127,10 @@ public class Main {
     }
 
     private static void initCommon() throws Exception {
-        config = new SortedProperties();
-        // todo: configreader needed
-        config.put("vibeSensor1", "GPIO 4");
-        config.put("HEALTH_CHANGE_PER_HIT", "-1");
-        config.put("GAME_LENGTH_IN_SECONDS", "60");
-        config.put("DELAY_BEFORE_GAME_STARTS_IN_SECONDS", "5");
-
-
-        VibesensorListener vibesensorListener = new VibesensorListener(logLevel, HEALTH_CHANGE_PER_HIT);
-        GamemodeListener gamemodeListener = new GamemodeListener(scheduler, 5, 10, 10l);
-
-        vibesensorListener.addListener(gamemodeListener);
 
         try {
             scheduler = StdSchedulerFactory.getDefaultScheduler();
-            
+
             scheduler.start();
             scheduler.getContext().put("loglevel", logLevel);
         } catch (SchedulerException se) {
@@ -144,12 +138,86 @@ public class Main {
             System.exit(0);
         }
 
+
+        config = new SortedProperties();
+        // todo: configreader needed
+        config.put("vibeSensor1", "GPIO 4");
+        config.put("HEALTH_CHANGE_PER_HIT", "-1");
+        config.put("GAME_LENGTH_IN_SECONDS", "60");
+        config.put("DELAY_BEFORE_GAME_STARTS_IN_SECONDS", "5");
+        config.put("MAX_HEALTH", "1000");
+        config.put("DEBOUNCE", "15");
+
+        config.put("GPIO_RED", RaspiPin.GPIO_00);
+        config.put("GPIO_GREEN", RaspiPin.GPIO_03);
+        config.put("GPIO_BLUE", RaspiPin.GPIO_05);
+
+
+        VibesensorListener vibesensorListener = new VibesensorListener(logLevel, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
+        GamemodeListener gamemodeListener = new GamemodeListener(scheduler, Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
+                Integer.parseInt(config.getProperty("GAME_LENGTH_IN_SECONDS")),
+                Long.parseLong(config.getProperty("MAX_HEALTH"))
+        );
+
+        vibesensorListener.addListener(gamemodeListener);
+
+
     }
+
 
     private static void initSwingFrame() throws Exception {
         if (Tools.isArm()) return;
 
-        FrameDebug frameDebug = new FrameDebug(gamemodeListener, HEALTH_CHANGE_PER_HIT);
+        MyGpioPinPwmOutput pwmRed = new MyGpioPinPwmOutput("pwmRed");
+        MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput("pwmGreen");
+        MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput("pwmBlue");
+
+        scheduler.getContext().put("pwmRed", pwmRed);
+        scheduler.getContext().put("pwmGreen", pwmGreen);
+        scheduler.getContext().put("pwmBlue", pwmBlue);
+
+        ArrayList<RGBBean> ledpattern = new ArrayList<>();
+                    ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 255, 0, 0, 1000l));
+                    ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 0, 255, 0, 1000l));
+                    ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 0, 0, 255, 1000l));
+//
+//                    String ledp = "pwnRed,pwmGreen,";
+
+
+        try {
+
+            JobDetail job = newJob(PinHandlerRGBJob.class)
+                    .withIdentity("rgbhandler1", "group1")
+
+                    .build();
+
+                    job.getJobDataMap().put("ledpattern",ledpattern);
+//            SimpleTrigger trigger = (SimpleTrigger) newTrigger()
+//                    .withIdentity("trigger2","group1")
+//                    .startNow()
+//                    .forJob("rgbhandler1","group1")
+//                    .build();
+
+            // Trigger the job to run now, and then repeat every 40 seconds
+            Trigger trigger = newTrigger()
+                    .withIdentity("rgbhandler1-trigger", "group1")
+                    .withSchedule(simpleSchedule().repeatForever().withIntervalInMilliseconds(1))
+                    .startNow()
+                    .build();
+
+
+
+
+            scheduler.scheduleJob(job, trigger);
+
+        } catch (SchedulerException e) {
+            logger.fatal(e);
+            e.printStackTrace();
+            System.exit(0);
+        }
+
+
+        FrameDebug frameDebug = new FrameDebug(gamemodeListener, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
         frameDebug.pack();
         frameDebug.setVisible(true);
         frameDebug.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -161,13 +229,13 @@ public class Main {
         if (!Tools.isArm()) return;
         GPIO = GpioFactory.getInstance();
 
-        Pin pinRed = RaspiPin.GPIO_00;
-        Pin pinGreen = RaspiPin.GPIO_03;
-        Pin pinBlue = RaspiPin.GPIO_05;
+        Pin pinRed = RaspiPin.getPinByName(config.getProperty("pwmRed"));
+        Pin pinGreen = RaspiPin.getPinByName(config.getProperty("pwmGreen"));
+        Pin pinBlue = RaspiPin.getPinByName(config.getProperty("pwmBlue"));
 
-        GpioPinPwmOutput pwmRed = GPIO.provisionSoftPwmOutputPin(pinRed);
-        GpioPinPwmOutput pwmGreen = GPIO.provisionSoftPwmOutputPin(pinGreen);
-        GpioPinPwmOutput pwmBlue = GPIO.provisionSoftPwmOutputPin(pinBlue);
+        MyGpioPinPwmOutput pwmRed = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinRed));
+        MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinGreen));
+        MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinBlue));
 
         scheduler.getContext().put("pwmRed", pwmRed);
         scheduler.getContext().put("pwmGreen", pwmGreen);
@@ -175,8 +243,7 @@ public class Main {
 
         Pin pinVibeSensor1 = RaspiPin.getPinByName(config.getProperty("vibeSensor1"));
         vibeSensor1 = GPIO.provisionDigitalInputPin(pinVibeSensor1, "vibeSensor1", PinPullResistance.PULL_DOWN);
-        vibeSensor1.setDebounce(15, PinState.LOW, PinState.HIGH);
-        vibeSensor1.addListener();
+        vibeSensor1.setDebounce(Integer.parseInt(config.getProperty("DEBOUNCE")), PinState.LOW, PinState.HIGH);
         vibeSensor1.addListener(vibesensorListener);
 
         pwmRed.setPwm(255);

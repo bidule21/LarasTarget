@@ -1,7 +1,6 @@
 package de.flashheart.lara.jobs;
 
-import de.flashheart.lara.tools.RGBValueBean;
-import org.apache.log4j.Level;
+import de.flashheart.lara.tools.RGBBean;
 import org.apache.log4j.Logger;
 import org.quartz.*;
 
@@ -11,6 +10,7 @@ import java.util.ArrayList;
 /**
  * Created by tloehr on 14.07.16.
  */
+@DisallowConcurrentExecution
 public class PinHandlerRGBJob implements Job, InterruptableJob {
 
 
@@ -24,15 +24,11 @@ public class PinHandlerRGBJob implements Job, InterruptableJob {
         Logger logger = Logger.getLogger(getClass().getName());
 
         try {
-            logger.setLevel((Level) context.getScheduler().getContext().get("loglevel"));
-            ArrayList<RGBValueBean> rgbValueBeans = (ArrayList<RGBValueBean>) context.getScheduler().getContext().get("rgbValueBeans");
+            ArrayList<RGBBean> rgbBeans = (ArrayList<RGBBean>) context.getJobDetail().getJobDataMap().get("ledpattern");
 
-            for (RGBValueBean rgbValueBean : rgbValueBeans) {
-                rgbValueBean.showLEDs();
+            for (RGBBean rgbBean : rgbBeans) {
+                rgbBean.showLEDs();
             }
-        } catch (SchedulerException e) {
-            logger.trace(e);
-            System.exit(0);
         } catch (InterruptedException e) {
             throw new JobExecutionException(e);
         }

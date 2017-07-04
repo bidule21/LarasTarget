@@ -5,16 +5,16 @@ import com.pi4j.io.gpio.GpioPinPwmOutput;
 /**
  * Created by tloehr on 03.07.17.
  */
-public class RGBValueBean {
-    GpioPinPwmOutput pinRed;
-    GpioPinPwmOutput pinGreen;
-    GpioPinPwmOutput pinBlue;
+public class RGBBean {
+    MyGpioPinPwmOutput pinRed;
+    MyGpioPinPwmOutput pinGreen;
+    MyGpioPinPwmOutput pinBlue;
     int valueRed;
     int valueGreen;
     int valueBlue;
     long ms;
 
-    public RGBValueBean(GpioPinPwmOutput pinRed, GpioPinPwmOutput pinGreen, GpioPinPwmOutput pinBlue, int valueRed, int valueGreen, int valueBlue, long ms) {
+    public RGBBean(MyGpioPinPwmOutput pinRed, MyGpioPinPwmOutput pinGreen, MyGpioPinPwmOutput pinBlue, int valueRed, int valueGreen, int valueBlue, long ms) {
         this.pinRed = pinRed;
         this.pinGreen = pinGreen;
         this.pinBlue = pinBlue;
