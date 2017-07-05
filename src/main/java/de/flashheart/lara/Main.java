@@ -173,7 +173,7 @@ public class Main {
         scheduler.getContext().put("pwmBlue", pwmBlue);
 
 
-        FrameDebug frameDebug = new FrameDebug(gamemodeListener, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
+        FrameDebug frameDebug = new FrameDebug(gamemodeListener);
         frameDebug.pack();
         frameDebug.setVisible(true);
         frameDebug.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -245,39 +245,24 @@ public class Main {
 
         
 
-        for (int i = 0; i < 100; i++) {
-            Color color = getColor(new BigDecimal(i));
-            pwmRed.setPwm(color.getRed());
-            pwmGreen.setPwm(color.getGreen());
-            pwmBlue.setPwm(color.getBlue());
+//        for (int i = 0; i < 100; i++) {
+//            Color color = getColor(new BigDecimal(i));
+//            pwmRed.setPwm(color.getRed());
+//            pwmGreen.setPwm(color.getGreen());
+//            pwmBlue.setPwm(color.getBlue());
+//
+//            logger.debug(String.format("%d|%d|%d", color.getRed(), color.getGreen(), color.getBlue()));
+//
+//
+//            Thread.sleep(50);
+//
+//        }
 
-            logger.debug(String.format("%d|%d|%d", color.getRed(), color.getGreen(), color.getBlue()));
-
-
-            Thread.sleep(50);
-
-        }
-
-        Thread.sleep(3000);
+//        Thread.sleep(3000);
 
 
     }
 
-
-    /**
-     * Da mein RGB LED Band die einzelnen Grundfarben unterschiedlich stark leuchten lässt (so überdeckt GRÜN so ziemlich alles),
-     * musste ich die Standard RGB Werte des Farbmodells gegen ein angepasstes tauschen.
-     * Daher die sehr seltsamen Werte für Orange uns so
-     * @param power
-     * @return
-     */
-    static Color getColor(BigDecimal power) {
-        Color[] colors = new Color[]{Color.green, new Color(255, 50, 0), new Color(255,25,0), new Color(255,10,0), Color.red};
-
-        int pos = new BigDecimal(colors.length).divide(new BigDecimal(100),2,BigDecimal.ROUND_UP).multiply(power).intValue();
-        logger.debug(pos);
-        return colors[pos];
-    }
 
 
 

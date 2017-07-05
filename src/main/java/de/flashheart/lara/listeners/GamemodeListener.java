@@ -4,14 +4,18 @@ package de.flashheart.lara.listeners;
 import de.flashheart.lara.interfaces.GamemodeListenerInterface;
 import de.flashheart.lara.jobs.DelayedGameStartJob;
 import de.flashheart.lara.jobs.GametimeIsUpJob;
+import de.flashheart.lara.jobs.PinHandlerRGBJob;
+import de.flashheart.lara.tools.RGBBean;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.quartz.*;
 
+import java.awt.*;
+import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.List;
 
 import static org.quartz.JobBuilder.newJob;
+import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 /**
@@ -26,6 +30,7 @@ public class GamemodeListener implements GamemodeListenerInterface {
     public static final int GAME_OVER_TARGET_DESTROYED = 10;
     public static final int GAME_OVER_TARGET_DEFENDED = 11;
 
+    private final Color[] colors = new Color[]{Color.green, new Color(255, 50, 0), new Color(255,25,0), new Color(255,10,0), Color.red};
     private final int delayInSeconds;
     private final Scheduler scheduler;
     private final int gameLengthInSeconds;
@@ -36,13 +41,13 @@ public class GamemodeListener implements GamemodeListenerInterface {
     private int gamemode, gamemodeToStartAfterDelay;
 
 
-    private List<GamemodeListener> listeners = new ArrayList<>();
     long lasthit = Long.MAX_VALUE;
     long health;
     final long HEALTH;
 
-    JobKey delayJobKey = null;
-    JobKey gametimerJobKey = null;
+    private JobKey delayJobKey = null;
+    private JobKey gametimerJobKey = null;
+    private JobKey rgbLEDJobKey;
 
 
     public GamemodeListener(Scheduler scheduler, int delayInSeconds, int gameLengthInSeconds, long HEALTH) throws SchedulerException {
@@ -65,8 +70,14 @@ public class GamemodeListener implements GamemodeListenerInterface {
 
         logger.debug("!!! HIT: new health value: " + health);
 
+//        long healthpercent = health / HEALTH * 100;
+        BigDecimal healthpercent = new BigDecimal(health).divide(new BigDecimal(HEALTH)).multiply(new BigDecimal(100));
+
         if (health == 0) {
             setGamemode(GAME_OVER_TARGET_DESTROYED);
+        } else {
+            int pos = new BigDecimal(colors.length).divide(new BigDecimal(100),2,BigDecimal.ROUND_UP).multiply(healthpercent).intValue();
+            wie gehts weiter?
         }
     }
 
@@ -205,6 +216,11 @@ public class GamemodeListener implements GamemodeListenerInterface {
             scheduler.deleteJob(gametimerJobKey);
             gametimerJobKey = null;
         }
+//        if (rgbLEDJobKey != null) {
+//            scheduler.interrupt(rgbLEDJobKey);
+//            scheduler.deleteJob(rgbLEDJobKey);
+//            rgbLEDJobKey = null;
+//        }
     }
 
     private void setupGametimerJobs() {
@@ -247,6 +263,43 @@ public class GamemodeListener implements GamemodeListenerInterface {
             System.exit(0);
         }
     }
+
+    // Pattern: redValue, greenValue, blueValue, hold4ms usw.
+    private void setRGBLedJob(Object pattern, int repeat) {
+        try {
+
+            if (rgbLEDJobKey != null) {
+                scheduler.interrupt(rgbLEDJobKey);
+                scheduler.deleteJob(rgbLEDJobKey);
+                rgbLEDJobKey = null;
+            }
+
+            JobDetail job = newJob(PinHandlerRGBJob.class)
+                    .withIdentity("rgbhandler1", "group1")
+                    .build();
+            rgbLEDJobKey = job.getKey();
+
+            job.getJobDataMap().put("ledpattern", pattern);
+
+            // Trigger the job to run now, and then repeat every 40 seconds
+            Trigger trigger = newTrigger()
+                    .withIdentity("rgbhandler1-trigger", "group1")
+                    .withSchedule(simpleSchedule().withRepeatCount(repeat).withIntervalInMilliseconds(1))
+                    .startNow()
+                    .build();
+
+            scheduler.scheduleJob(job, trigger);
+
+        } catch (SchedulerException e) {
+            e.printStackTrace();
+            logger.fatal(e);
+            System.exit(0);
+        }
+
+    }
+
+
+
 
 
 }
