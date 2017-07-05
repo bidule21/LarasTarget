@@ -1,25 +1,21 @@
 package de.flashheart.lara;
 
 import com.pi4j.io.gpio.*;
-import de.flashheart.lara.jobs.PinHandlerRGBJob;
 import de.flashheart.lara.listeners.GamemodeListener;
 import de.flashheart.lara.listeners.VibesensorListener;
 import de.flashheart.lara.swing.FrameDebug;
 import de.flashheart.lara.tools.MyGpioPinPwmOutput;
-import de.flashheart.lara.tools.RGBBean;
 import de.flashheart.lara.tools.SortedProperties;
 import de.flashheart.lara.tools.Tools;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.quartz.*;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.swing.*;
-import java.util.ArrayList;
-
-import static org.quartz.JobBuilder.newJob;
-import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
-import static org.quartz.TriggerBuilder.newTrigger;
+import java.awt.*;
+import java.math.BigDecimal;
 
 public class Main {
     public static GpioController GPIO;
@@ -148,9 +144,9 @@ public class Main {
         config.put("MAX_HEALTH", "1000");
         config.put("DEBOUNCE", "15");
 
-        config.put("GPIO_RED", RaspiPin.GPIO_00);
-        config.put("GPIO_GREEN", RaspiPin.GPIO_03);
-        config.put("GPIO_BLUE", RaspiPin.GPIO_05);
+        config.put("pwmRed", "GPIO 0");
+        config.put("pwmGreen", "GPIO 3");
+        config.put("pwmBlue", "GPIO 5");
 
 
         VibesensorListener vibesensorListener = new VibesensorListener(logLevel, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
@@ -176,51 +172,12 @@ public class Main {
         scheduler.getContext().put("pwmGreen", pwmGreen);
         scheduler.getContext().put("pwmBlue", pwmBlue);
 
-        ArrayList<RGBBean> ledpattern = new ArrayList<>();
-                    ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 255, 0, 0, 1000l));
-                    ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 0, 255, 0, 1000l));
-                    ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 0, 0, 255, 1000l));
-//
-//                    String ledp = "pwnRed,pwmGreen,";
-
-
-        try {
-
-            JobDetail job = newJob(PinHandlerRGBJob.class)
-                    .withIdentity("rgbhandler1", "group1")
-
-                    .build();
-
-                    job.getJobDataMap().put("ledpattern",ledpattern);
-//            SimpleTrigger trigger = (SimpleTrigger) newTrigger()
-//                    .withIdentity("trigger2","group1")
-//                    .startNow()
-//                    .forJob("rgbhandler1","group1")
-//                    .build();
-
-            // Trigger the job to run now, and then repeat every 40 seconds
-            Trigger trigger = newTrigger()
-                    .withIdentity("rgbhandler1-trigger", "group1")
-                    .withSchedule(simpleSchedule().repeatForever().withIntervalInMilliseconds(1))
-                    .startNow()
-                    .build();
-
-
-
-
-            scheduler.scheduleJob(job, trigger);
-
-        } catch (SchedulerException e) {
-            logger.fatal(e);
-            e.printStackTrace();
-            System.exit(0);
-        }
-
 
         FrameDebug frameDebug = new FrameDebug(gamemodeListener, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
         frameDebug.pack();
         frameDebug.setVisible(true);
         frameDebug.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+
 
     }
 
@@ -246,31 +203,82 @@ public class Main {
         vibeSensor1.setDebounce(Integer.parseInt(config.getProperty("DEBOUNCE")), PinState.LOW, PinState.HIGH);
         vibeSensor1.addListener(vibesensorListener);
 
-        pwmRed.setPwm(255);
-        pwmGreen.setPwm(0);
-        pwmBlue.setPwm(0);
+//
+//        ArrayList<RGBBean> ledpattern = new ArrayList<>();
+//        ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 255, 0, 0, 1000l));
+//        ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 0, 255, 0, 1000l));
+//        ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 0, 0, 255, 1000l));
+////
+////                    String ledp = "pwnRed,pwmGreen,";
+//
+//
+//        try {
+//
+//            JobDetail job = newJob(PinHandlerRGBJob.class)
+//                    .withIdentity("rgbhandler1", "group1")
+//
+//                    .build();
+//
+//            job.getJobDataMap().put("ledpattern", ledpattern);
+////            SimpleTrigger trigger = (SimpleTrigger) newTrigger()
+////                    .withIdentity("trigger2","group1")
+////                    .startNow()
+////                    .forJob("rgbhandler1","group1")
+////                    .build();
+//
+//            // Trigger the job to run now, and then repeat every 40 seconds
+//            Trigger trigger = newTrigger()
+//                    .withIdentity("rgbhandler1-trigger", "group1")
+//                    .withSchedule(simpleSchedule().repeatForever().withIntervalInMilliseconds(1))
+//                    .startNow()
+//                    .build();
+//
+//
+//            scheduler.scheduleJob(job, trigger);
+//
+//        } catch (SchedulerException e) {
+//            logger.fatal(e);
+//            e.printStackTrace();
+//            System.exit(0);
+//        }
+
+
+        
+
+        for (int i = 0; i < 100; i++) {
+            Color color = getColor(new BigDecimal(i));
+            pwmRed.setPwm(color.getRed());
+            pwmGreen.setPwm(color.getGreen());
+            pwmBlue.setPwm(color.getBlue());
+
+            logger.debug(String.format("%d|%d|%d", color.getRed(), color.getGreen(), color.getBlue()));
+
+
+            Thread.sleep(50);
+
+        }
 
         Thread.sleep(3000);
 
-        pwmRed.setPwm(0);
-        pwmGreen.setPwm(255);
-        pwmBlue.setPwm(0);
-
-        Thread.sleep(3000);
-
-        pwmRed.setPwm(0);
-        pwmGreen.setPwm(0);
-        pwmBlue.setPwm(255);
-
-        Thread.sleep(3000);
-
-        // you can optionally use these wiringPi methods to further customize the PWM generator
-        // see: http://wiringpi.com/reference/raspberry-pi-specifics/
-//        com.pi4j.wiringpi.Gpio.pwmSetMode(com.pi4j.wiringpi.Gpio.PWM_MODE_MS);
-//        com.pi4j.wiringpi.Gpio.pwmSetRange(255);
-//        com.pi4j.wiringpi.Gpio.pwmSetClock(500);
 
     }
+
+
+    /**
+     * Da mein RGB LED Band die einzelnen Grundfarben unterschiedlich stark leuchten lässt (so überdeckt GRÜN so ziemlich alles),
+     * musste ich die Standard RGB Werte des Farbmodells gegen ein angepasstes tauschen.
+     * Daher die sehr seltsamen Werte für Orange uns so
+     * @param power
+     * @return
+     */
+    static Color getColor(BigDecimal power) {
+        Color[] colors = new Color[]{Color.green, new Color(255, 50, 0), new Color(255,25,0), new Color(255,10,0), Color.red};
+
+        int pos = new BigDecimal(colors.length).divide(new BigDecimal(100),2,BigDecimal.ROUND_UP).multiply(power).intValue();
+        logger.debug(pos);
+        return colors[pos];
+    }
+
 
 
 }
