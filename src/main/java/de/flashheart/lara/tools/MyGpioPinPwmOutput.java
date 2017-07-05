@@ -22,13 +22,13 @@ public class MyGpioPinPwmOutput {
     }
 
     public void setPwm(int value) {
-        logger.debug(String.format("[%s] setting pwm value to: %d", name, value));
+//        logger.debug(String.format("[%s] setting pwm value to: %d", name, value));
         if (gpioPinPwmOutput == null) return;
         gpioPinPwmOutput.setPwm(value);
     }
 
     public void setPwmRange(int range) {
-        logger.debug(String.format("[%s] setting pwm range value to: %d", name, range));
+//        logger.debug(String.format("[%s] setting pwm range value to: %d", name, range));
         if (gpioPinPwmOutput == null) return;
         gpioPinPwmOutput.setPwmRange(range);
     }

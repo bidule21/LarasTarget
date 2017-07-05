@@ -1,6 +1,7 @@
 package de.flashheart.lara;
 
 import com.pi4j.io.gpio.*;
+import de.flashheart.lara.listeners.GameButtonListener;
 import de.flashheart.lara.listeners.GamemodeListener;
 import de.flashheart.lara.listeners.VibesensorListener;
 import de.flashheart.lara.swing.FrameDebug;
@@ -14,8 +15,6 @@ import org.quartz.SchedulerException;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.swing.*;
-import java.awt.*;
-import java.math.BigDecimal;
 
 public class Main {
     public static GpioController GPIO;
@@ -148,9 +147,11 @@ public class Main {
         config.put("pwmGreen", "GPIO 3");
         config.put("pwmBlue", "GPIO 5");
 
+        config.put("pinSiren", "GPIO 6");
+        config.put("pinGameModeButton", "GPIO 22");
 
-        VibesensorListener vibesensorListener = new VibesensorListener(logLevel, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
-        GamemodeListener gamemodeListener = new GamemodeListener(scheduler, Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
+        vibesensorListener = new VibesensorListener(logLevel, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
+        gamemodeListener = new GamemodeListener(scheduler, Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
                 Integer.parseInt(config.getProperty("GAME_LENGTH_IN_SECONDS")),
                 Long.parseLong(config.getProperty("MAX_HEALTH"))
         );
@@ -190,6 +191,8 @@ public class Main {
         Pin pinGreen = RaspiPin.getPinByName(config.getProperty("pwmGreen"));
         Pin pinBlue = RaspiPin.getPinByName(config.getProperty("pwmBlue"));
 
+        Pin pinSiren = RaspiPin.getPinByName(config.getProperty("pinSiren"));
+
         MyGpioPinPwmOutput pwmRed = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinRed));
         MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinGreen));
         MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinBlue));
@@ -203,7 +206,18 @@ public class Main {
         vibeSensor1.setDebounce(Integer.parseInt(config.getProperty("DEBOUNCE")), PinState.LOW, PinState.HIGH);
         vibeSensor1.addListener(vibesensorListener);
 
-//
+        GpioPinDigitalInput gamebutton = GPIO.provisionDigitalInputPin(RaspiPin.getPinByName(config.getProperty("pinGameModeButton")), "gamemodeButton", PinPullResistance.PULL_UP);
+        GameButtonListener gameButtonListener = new GameButtonListener(logLevel);
+        gameButtonListener.addListener(gamemodeListener);
+        gamebutton.addListener(gameButtonListener);
+
+
+//        GpioPinDigitalOutput gpioSiren = GPIO.provisionDigitalOutputPin(pinSiren, "Siren", PinState.LOW);
+//        gpioSiren.high();
+//        Thread.sleep(1000);
+//        gpioSiren.low();
+
+
 //        ArrayList<RGBBean> ledpattern = new ArrayList<>();
 //        ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 255, 0, 0, 1000l));
 //        ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, 0, 255, 0, 1000l));
@@ -243,8 +257,6 @@ public class Main {
 //        }
 
 
-        
-
 //        for (int i = 0; i < 100; i++) {
 //            Color color = getColor(new BigDecimal(i));
 //            pwmRed.setPwm(color.getRed());
@@ -262,8 +274,6 @@ public class Main {
 
 
     }
-
-
 
 
 }

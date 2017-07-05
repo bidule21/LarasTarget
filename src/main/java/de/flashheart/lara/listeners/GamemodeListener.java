@@ -1,10 +1,12 @@
 package de.flashheart.lara.listeners;
 
 
+import com.pi4j.io.gpio.event.GpioPinListener;
 import de.flashheart.lara.interfaces.GamemodeListenerInterface;
 import de.flashheart.lara.jobs.DelayedGameStartJob;
 import de.flashheart.lara.jobs.GametimeIsUpJob;
 import de.flashheart.lara.jobs.PinHandlerRGBJob;
+import de.flashheart.lara.tools.MyGpioPinPwmOutput;
 import de.flashheart.lara.tools.RGBBean;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
@@ -21,7 +23,7 @@ import static org.quartz.TriggerBuilder.newTrigger;
 /**
  * Created by tloehr on 29.06.17.
  */
-public class GamemodeListener implements GamemodeListenerInterface {
+public class GamemodeListener implements GamemodeListenerInterface, GpioPinListener {
     public static final int GAME_PRE_GAME = 0;
     public static final int GAME_ABOUT_TO_RUN = 1;
     public static final int GAME_RUNNING = 2;
@@ -30,16 +32,16 @@ public class GamemodeListener implements GamemodeListenerInterface {
     public static final int GAME_OVER_TARGET_DESTROYED = 10;
     public static final int GAME_OVER_TARGET_DEFENDED = 11;
 
-    private final Color[] colors = new Color[]{Color.green, new Color(255, 50, 0), new Color(255,25,0), new Color(255,10,0), Color.red};
+    private final Color[] colors = new Color[]{Color.red, new Color(255, 10, 0), new Color(255, 25, 0), new Color(255, 50, 0), Color.green};
     private final int delayInSeconds;
     private final Scheduler scheduler;
     private final int gameLengthInSeconds;
-
+    private int lastpos = -1; // damit die LED Jobs nicht zu oft unnötig geändert werden
 
     Logger logger = Logger.getLogger(getClass());
     private int buttonPressedCount = 1;
     private int gamemode, gamemodeToStartAfterDelay;
-
+    private MyGpioPinPwmOutput pwmRed, pwmGreen, pwmBlue;
 
     long lasthit = Long.MAX_VALUE;
     long health;
@@ -57,6 +59,11 @@ public class GamemodeListener implements GamemodeListenerInterface {
         this.delayInSeconds = delayInSeconds;
         this.scheduler.getContext().put("gamemodelistener", this);
         setGamemode(GAME_PRE_GAME);
+
+        pwmRed = (MyGpioPinPwmOutput) scheduler.getContext().get("pwmRed");
+        pwmGreen = (MyGpioPinPwmOutput) scheduler.getContext().get("pwmGreen");
+        pwmBlue = (MyGpioPinPwmOutput) scheduler.getContext().get("pwmBlue");
+
     }
 
     @Override
@@ -76,8 +83,16 @@ public class GamemodeListener implements GamemodeListenerInterface {
         if (health == 0) {
             setGamemode(GAME_OVER_TARGET_DESTROYED);
         } else {
-            int pos = new BigDecimal(colors.length).divide(new BigDecimal(100),2,BigDecimal.ROUND_UP).multiply(healthpercent).intValue();
-            wie gehts weiter?
+            int pos = new BigDecimal(colors.length).divide(new BigDecimal(100), 2, BigDecimal.ROUND_UP).multiply(healthpercent).intValue();
+            if (lastpos != pos) {
+                lastpos = pos;
+
+                ArrayList<RGBBean> ledpattern = new ArrayList<>();
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, colors[pos], 500l));
+
+                setRGBLedJob(ledpattern, Integer.MAX_VALUE);
+            }
+
         }
     }
 
@@ -129,6 +144,7 @@ public class GamemodeListener implements GamemodeListenerInterface {
                         " |  __/|  _ <| |__| |_| |/ ___ \\| |  | | |___ \n" +
                         " |_|   |_| \\_\\_____\\____/_/   \\_\\_|  |_|_____|\n" +
                         "                                              ");
+
                 break;
             }
             case GAME_ABOUT_TO_RUN: {
@@ -152,6 +168,13 @@ public class GamemodeListener implements GamemodeListenerInterface {
                         " | |_| |/ ___ \\| |  | | |___  |  _ <| |_| | |\\  | |\\  || || |\\  | |_| |\n" +
                         "  \\____/_/   \\_\\_|  |_|_____| |_| \\_\\\\___/|_| \\_|_| \\_|___|_| \\_|\\____|\n" +
                         "                                                                       ");
+
+                ArrayList<RGBBean> ledpattern = new ArrayList<>();
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.green, 500l));
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.black, 500l));
+
+                setRGBLedJob(ledpattern, Integer.MAX_VALUE);
+
                 setupGametimerJobs();
                 break;
             }
@@ -277,6 +300,7 @@ public class GamemodeListener implements GamemodeListenerInterface {
             JobDetail job = newJob(PinHandlerRGBJob.class)
                     .withIdentity("rgbhandler1", "group1")
                     .build();
+
             rgbLEDJobKey = job.getKey();
 
             job.getJobDataMap().put("ledpattern", pattern);
@@ -297,9 +321,6 @@ public class GamemodeListener implements GamemodeListenerInterface {
         }
 
     }
-
-
-
 
 
 }
