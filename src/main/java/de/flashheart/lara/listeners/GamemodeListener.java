@@ -1,10 +1,11 @@
 package de.flashheart.lara.listeners;
 
 
+import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.event.GpioPinListener;
-import de.flashheart.lara.interfaces.GamemodeListenerInterface;
 import de.flashheart.lara.jobs.DelayedGameStartJob;
 import de.flashheart.lara.jobs.GametimeIsUpJob;
+import de.flashheart.lara.jobs.GametimeNotificationJob;
 import de.flashheart.lara.jobs.PinHandlerRGBJob;
 import de.flashheart.lara.tools.MyGpioPinPwmOutput;
 import de.flashheart.lara.tools.RGBBean;
@@ -23,7 +24,7 @@ import static org.quartz.TriggerBuilder.newTrigger;
 /**
  * Created by tloehr on 29.06.17.
  */
-public class GamemodeListener implements GamemodeListenerInterface, GpioPinListener {
+public class GamemodeListener implements GpioPinListener {
     public static final int GAME_PRE_GAME = 0;
     public static final int GAME_ABOUT_TO_RUN = 1;
     public static final int GAME_RUNNING = 2;
@@ -35,38 +36,43 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
     private final Color[] colors = new Color[]{Color.red, new Color(255, 10, 0), new Color(255, 25, 0), new Color(255, 50, 0), Color.green};
     private final int delayInSeconds;
     private final Scheduler scheduler;
-    private final int gameLengthInSeconds;
     private int lastpos = -1; // damit die LED Jobs nicht zu oft unnötig geändert werden
 
     Logger logger = Logger.getLogger(getClass());
     private int buttonPressedCount = 1;
     private int gamemode, gamemodeToStartAfterDelay;
-    private MyGpioPinPwmOutput pwmRed, pwmGreen, pwmBlue;
+    private final GpioPinDigitalOutput pinSiren;
+    private final MyGpioPinPwmOutput pwmRed;
+    private final MyGpioPinPwmOutput pwmGreen;
+    private final MyGpioPinPwmOutput pwmBlue;
 
     long lasthit = Long.MAX_VALUE;
     long health;
     final long HEALTH;
 
     private JobKey delayJobKey = null;
+    private JobKey gametimeIsUpJobKey = null;
     private JobKey gametimerJobKey = null;
     private JobKey rgbLEDJobKey;
 
+    private final long gameLengthInMillis;
+    private long gameStartedAt, gametimer, gametimeRemaining;
 
-    public GamemodeListener(Scheduler scheduler, int delayInSeconds, int gameLengthInSeconds, long HEALTH) throws SchedulerException {
+    public GamemodeListener(GpioPinDigitalOutput pinSiren, MyGpioPinPwmOutput pwmRed, MyGpioPinPwmOutput pwmGreen, MyGpioPinPwmOutput pwmBlue, Scheduler scheduler, int delayInSeconds, int gameLengthInSeconds, long HEALTH) throws SchedulerException {
+        this.pinSiren = pinSiren;
+        this.pwmRed = pwmRed;
+        this.pwmGreen = pwmGreen;
+        this.pwmBlue = pwmBlue;
         this.scheduler = scheduler;
-        this.gameLengthInSeconds = gameLengthInSeconds;
+        this.gameLengthInMillis = gameLengthInSeconds * 1000;
         this.HEALTH = HEALTH;
         this.delayInSeconds = delayInSeconds;
         this.scheduler.getContext().put("gamemodelistener", this);
         setGamemode(GAME_PRE_GAME);
 
-        pwmRed = (MyGpioPinPwmOutput) scheduler.getContext().get("pwmRed");
-        pwmGreen = (MyGpioPinPwmOutput) scheduler.getContext().get("pwmGreen");
-        pwmBlue = (MyGpioPinPwmOutput) scheduler.getContext().get("pwmBlue");
 
     }
 
-    @Override
     public void healthChangedBy(long deltaHealth) {
         if (!isGameRunning()) return;
 
@@ -96,12 +102,18 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
         }
     }
 
-    @Override
+
     public void targetDefended() {
         setGamemode(GAME_OVER_TARGET_DEFENDED);
     }
 
-    @Override
+    public void gametimeNotification() {
+        if (gameStartedAt == -1l) return;
+        gametimer = System.currentTimeMillis() - gameStartedAt;
+        gametimeRemaining = gameStartedAt + gameLengthInMillis - gametimer;
+    }
+
+
     public void startGame() {
         setGamemode(gamemodeToStartAfterDelay);
     }
@@ -114,7 +126,7 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
         return gamemode == GAME_RUNNING || gamemode == GAME_RUNNING_WITH_AUTOREPAIR;
     }
 
-    @Override
+
     public void gamemodeButtonPressed() {
         if (isGameOver()) {
             buttonPressedCount = 1;
@@ -144,7 +156,15 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
                         " |  __/|  _ <| |__| |_| |/ ___ \\| |  | | |___ \n" +
                         " |_|   |_| \\_\\_____\\____/_/   \\_\\_|  |_|_____|\n" +
                         "                                              ");
+                gameStartedAt = -1l;
+                gametimer = -1l;
+                gametimeRemaining = -1l;
 
+                ArrayList<RGBBean> ledpattern = new ArrayList<>();
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLUE, 1000l));
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.black, 1000l));
+
+                setRGBLedJob(ledpattern, Integer.MAX_VALUE);
                 break;
             }
             case GAME_ABOUT_TO_RUN: {
@@ -157,6 +177,13 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
                         "                                                                                                ");
                 gamemodeToStartAfterDelay = GAME_RUNNING;
                 health = HEALTH; // the box starts completely healthy
+
+                ArrayList<RGBBean> ledpattern = new ArrayList<>();
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.RED, 1000l));
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.GREEN, 1000l));
+
+                setRGBLedJob(ledpattern, Integer.MAX_VALUE);
+
                 setupDelayJobs();
                 break;
             }
@@ -168,14 +195,16 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
                         " | |_| |/ ___ \\| |  | | |___  |  _ <| |_| | |\\  | |\\  || || |\\  | |_| |\n" +
                         "  \\____/_/   \\_\\_|  |_|_____| |_| \\_\\\\___/|_| \\_|_| \\_|___|_| \\_|\\____|\n" +
                         "                                                                       ");
+                gameStartedAt = System.currentTimeMillis();
 
                 ArrayList<RGBBean> ledpattern = new ArrayList<>();
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.green, 500l));
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.black, 500l));
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.green, gameLengthInMillis/1000)); // todo: das ist nicht gut
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.black, gameLengthInMillis/1000));
 
                 setRGBLedJob(ledpattern, Integer.MAX_VALUE);
 
                 setupGametimerJobs();
+                setupGameTimeIsUpJobs();
                 break;
             }
             case GAME_ABOUT_TO_RUN_WITH_AUTOREPAIR: {
@@ -186,6 +215,13 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
                         " | |_| |/ ___ \\| |  | | |___   / ___ \\| |_) | |_| | |_| | | |     | || |_| | |  _ <| |_| | |\\  |  / ___ \\ |_| | | || |_| |  _ <| |___|  __/ ___ \\ | ||  _ < \n" +
                         "  \\____/_/   \\_\\_|  |_|_____| /_/   \\_\\____/ \\___/ \\___/  |_|     |_| \\___/  |_| \\_\\\\___/|_| \\_| /_/   \\_\\___/  |_| \\___/|_| \\_\\_____|_| /_/   \\_\\___|_| \\_\\\n" +
                         "                                                                                                                                                            ");
+
+                ArrayList<RGBBean> ledpattern = new ArrayList<>();
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLUE, 1000l));
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.WHITE, 1000l));
+
+                setRGBLedJob(ledpattern, Integer.MAX_VALUE);
+
                 health = HEALTH; // the box starts completely healthy
                 gamemodeToStartAfterDelay = GAME_RUNNING_WITH_AUTOREPAIR;
                 setupDelayJobs();
@@ -199,7 +235,9 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
                         " | |_| |/ ___ \\| |  | | |___  |  _ <| |_| | |\\  | |\\  || || |\\  | |_| |  / ___ \\ |_| | | || |_| |  _ <| |___|  __/ ___ \\ | ||  _ < \n" +
                         "  \\____/_/   \\_\\_|  |_|_____| |_| \\_\\\\___/|_| \\_|_| \\_|___|_| \\_|\\____| /_/   \\_\\___/  |_| \\___/|_| \\_\\_____|_| /_/   \\_\\___|_| \\_\\\n" +
                         "                                                                                                                                   ");
+                gameStartedAt = System.currentTimeMillis();
                 setupGametimerJobs();
+                setupGameTimeIsUpJobs();
                 break;
             }
             case GAME_OVER_TARGET_DEFENDED: {
@@ -210,6 +248,9 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
                         "   | |/ ___ \\|  _ <| |_| | |___  | |   | |_| | |___|  _| | |___| |\\  | |_| | |___| |_| |\n" +
                         "   |_/_/   \\_\\_| \\_\\\\____|_____| |_|   |____/|_____|_|   |_____|_| \\_|____/|_____|____/ \n" +
                         "                                                                                        ");
+                gameStartedAt = -1l;
+                gametimer = -1l;
+                gametimeRemaining = -1l;
                 break;
             }
             case GAME_OVER_TARGET_DESTROYED: {
@@ -220,6 +261,9 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
                         "   | |/ ___ \\|  _ <| |_| | |___  | |   | |_| | |___ ___) || | |  _ <| |_| || | | |___| |_| |\n" +
                         "   |_/_/   \\_\\_| \\_\\\\____|_____| |_|   |____/|_____|____/ |_| |_| \\_\\\\___/ |_| |_____|____/ \n" +
                         "                                                                                             ");
+                gameStartedAt = -1l;
+                gametimer = -1l;
+                gametimeRemaining = -1l;
                 break;
             }
             default: {
@@ -228,31 +272,52 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
         }
     }
 
-    private void deleteJobs() throws SchedulerException {
+    private void deleteTimerJobs() throws SchedulerException {
         if (delayJobKey != null) {
             scheduler.interrupt(delayJobKey);
             scheduler.deleteJob(delayJobKey);
             delayJobKey = null;
+        }
+        if (gametimeIsUpJobKey != null) {
+            scheduler.interrupt(gametimeIsUpJobKey);
+            scheduler.deleteJob(gametimeIsUpJobKey);
+            gametimeIsUpJobKey = null;
         }
         if (gametimerJobKey != null) {
             scheduler.interrupt(gametimerJobKey);
             scheduler.deleteJob(gametimerJobKey);
             gametimerJobKey = null;
         }
-//        if (rgbLEDJobKey != null) {
-//            scheduler.interrupt(rgbLEDJobKey);
-//            scheduler.deleteJob(rgbLEDJobKey);
-//            rgbLEDJobKey = null;
-//        }
     }
 
     private void setupGametimerJobs() {
         try {
-            deleteJobs();
+            deleteTimerJobs();
+            JobDetail job = newJob(GametimeNotificationJob.class)
+                    .withIdentity(GametimeNotificationJob.name, "group1")
+                    .build();
+            gametimeIsUpJobKey = job.getKey();
+
+            // Trigger the job to run now, and then repeat every 40 seconds
+            Trigger trigger = newTrigger()
+                    .withIdentity(GametimeNotificationJob.name + "-trigger", "group1")
+                    .startAt(new DateTime().plusSeconds(gameLengthInSeconds).toDate())
+                    .build();
+            scheduler.scheduleJob(job, trigger);
+        } catch (SchedulerException e) {
+            logger.fatal(e);
+            System.exit(0);
+        }
+    }
+
+
+    private void setupGameTimeIsUpJobs() {
+        try {
+            deleteTimerJobs();
             JobDetail job = newJob(GametimeIsUpJob.class)
                     .withIdentity(GametimeIsUpJob.name, "group1")
                     .build();
-            gametimerJobKey = job.getKey();
+            gametimeIsUpJobKey = job.getKey();
 
             // Trigger the job to run now, and then repeat every 40 seconds
             Trigger trigger = newTrigger()
@@ -268,7 +333,7 @@ public class GamemodeListener implements GamemodeListenerInterface, GpioPinListe
 
     private void setupDelayJobs() {
         try {
-            deleteJobs();
+            deleteTimerJobs();
             JobDetail job = newJob(DelayedGameStartJob.class)
                     .withIdentity(DelayedGameStartJob.name, "group1")
                     .build();

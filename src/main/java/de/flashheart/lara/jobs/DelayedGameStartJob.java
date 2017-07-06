@@ -32,7 +32,7 @@ public class DelayedGameStartJob implements Job, InterruptableJob {
 
     @Override
     public void interrupt() throws UnableToInterruptJobException {
-        // nothing to do here
+        // nothing to do here, no sleep() usage
     }
 
 }

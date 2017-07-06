@@ -9,9 +9,9 @@ import org.quartz.*;
  * Created by tloehr on 30.06.17.
  */
 @DisallowConcurrentExecution
-public class GametimeIsUpJob implements Job, InterruptableJob {
-    public static final String name = "gametimejob1";
-    Logger logger = Logger.getLogger(getClass());
+public class GametimeNotificationJob implements Job, InterruptableJob {
+    public static final String name = "gametimerjob1";
+
 
     @Override
     public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
@@ -22,15 +22,17 @@ public class GametimeIsUpJob implements Job, InterruptableJob {
             logger.setLevel((Level) jobExecutionContext.getScheduler().getContext().get("loglevel"));
             logger.debug("Starting the Game");
             gamemodeListener = (GamemodeListener) jobExecutionContext.getScheduler().getContext().get("gamemodelistener");
-            gamemodeListener.targetDefended();
+            gamemodeListener.startGame();
         } catch (SchedulerException e) {
             logger.fatal(e);
             System.exit(0);
         }
+
     }
 
     @Override
     public void interrupt() throws UnableToInterruptJobException {
         // nothing to do here, no sleep() usage
     }
+
 }

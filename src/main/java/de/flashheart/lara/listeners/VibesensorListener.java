@@ -6,36 +6,29 @@ import com.pi4j.io.gpio.event.GpioPinListenerDigital;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Created by tloehr on 29.06.17.
  */
 public class VibesensorListener implements GpioPinListenerDigital {
+    private final GamemodeListener gamemodeListener;
     private final long HEALTH_CHANGE_PER_HIT;
-    private List<GamemodeListener> listeners = new ArrayList<>();
     Logger logger = Logger.getLogger(getClass());
 
-    public VibesensorListener(Level level, long healthChangePerHit) {
+    public VibesensorListener(GamemodeListener gamemodeListener, Level level, long healthChangePerHit) {
         super();
+        this.gamemodeListener = gamemodeListener;
         HEALTH_CHANGE_PER_HIT = healthChangePerHit;
         logger.setLevel(level);
     }
 
-    public void addListener(GamemodeListener gamemodeListener) {
-        listeners.add(gamemodeListener);
-    }
 
     @Override
     public void handleGpioPinDigitalStateChangeEvent(GpioPinDigitalStateChangeEvent event) {
-        logger.debug(event);
+//        logger.debug(event);
 
         if (event.getState() == PinState.HIGH) {
-            logger.debug("Damage detected");
-            for (GamemodeListener gl : listeners) {
-                gl.healthChangedBy(HEALTH_CHANGE_PER_HIT);
-            }
+//            logger.debug("Damage detected");
+            gamemodeListener.healthChangedBy(HEALTH_CHANGE_PER_HIT);
         }
     }
 }

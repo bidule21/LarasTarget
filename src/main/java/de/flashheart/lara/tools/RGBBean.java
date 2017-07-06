@@ -16,6 +16,10 @@ public class RGBBean {
     int valueBlue;
     long ms;
 
+    public void interrupt(){
+        Thread.currentThread().interrupt();
+    }
+
     public RGBBean(MyGpioPinPwmOutput pinRed, MyGpioPinPwmOutput pinGreen, MyGpioPinPwmOutput pinBlue, Color color, long ms) {
         this.pinRed = pinRed;
         this.pinGreen = pinGreen;
@@ -30,7 +34,7 @@ public class RGBBean {
         pinRed.setPwm(valueRed);
         pinGreen.setPwm(valueGreen);
         pinBlue.setPwm(valueBlue);
-        Thread.sleep(ms);
+        Thread.currentThread().sleep(ms);
     }
 
 }

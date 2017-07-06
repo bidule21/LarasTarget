@@ -33,10 +33,10 @@ public class Main {
     private static Logger logger;
     private static Level logLevel = Level.DEBUG;
     private static StringBuffer csv = new StringBuffer(100000);
-    private static GpioPinDigitalInput vibeSensor1;
+//    private static GpioPinDigitalInput vibeSensor1;
 
-    private static VibesensorListener vibesensorListener;
-    private static GamemodeListener gamemodeListener;
+//    private static VibesensorListener vibesensorListener;
+//    private static GamemodeListener gamemodeListener;
 
 
     /**
@@ -150,14 +150,6 @@ public class Main {
         config.put("pinSiren", "GPIO 6");
         config.put("pinGameModeButton", "GPIO 22");
 
-        vibesensorListener = new VibesensorListener(logLevel, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
-        gamemodeListener = new GamemodeListener(scheduler, Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
-                Integer.parseInt(config.getProperty("GAME_LENGTH_IN_SECONDS")),
-                Long.parseLong(config.getProperty("MAX_HEALTH"))
-        );
-
-        vibesensorListener.addListener(gamemodeListener);
-
 
     }
 
@@ -169,17 +161,14 @@ public class Main {
         MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput("pwmGreen");
         MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput("pwmBlue");
 
-        scheduler.getContext().put("pwmRed", pwmRed);
-        scheduler.getContext().put("pwmGreen", pwmGreen);
-        scheduler.getContext().put("pwmBlue", pwmBlue);
-
-
-        FrameDebug frameDebug = new FrameDebug(gamemodeListener);
+        FrameDebug frameDebug = new FrameDebug(new GamemodeListener(null, pwmRed, pwmGreen, pwmBlue, scheduler,
+                Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
+                Integer.parseInt(config.getProperty("GAME_LENGTH_IN_SECONDS")),
+                Long.parseLong(config.getProperty("MAX_HEALTH"))
+        ));
         frameDebug.pack();
         frameDebug.setVisible(true);
         frameDebug.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-
-
     }
 
 
@@ -197,12 +186,19 @@ public class Main {
         MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinGreen));
         MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinBlue));
 
-        scheduler.getContext().put("pwmRed", pwmRed);
-        scheduler.getContext().put("pwmGreen", pwmGreen);
-        scheduler.getContext().put("pwmBlue", pwmBlue);
+        GpioPinDigitalOutput gpioSiren = GPIO.provisionDigitalOutputPin(pinSiren, "Siren", PinState.LOW);
+
+        GamemodeListener gamemodeListener = new GamemodeListener(gpioSiren, pwmRed, pwmGreen, pwmBlue, scheduler,
+                Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
+                Integer.parseInt(config.getProperty("GAME_LENGTH_IN_SECONDS")),
+                Long.parseLong(config.getProperty("MAX_HEALTH"))
+        );
+
+        VibesensorListener vibesensorListener = new VibesensorListener(gamemodeListener, logLevel, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
+
 
         Pin pinVibeSensor1 = RaspiPin.getPinByName(config.getProperty("vibeSensor1"));
-        vibeSensor1 = GPIO.provisionDigitalInputPin(pinVibeSensor1, "vibeSensor1", PinPullResistance.PULL_DOWN);
+        GpioPinDigitalInput vibeSensor1 = GPIO.provisionDigitalInputPin(pinVibeSensor1, "vibeSensor1", PinPullResistance.PULL_DOWN);
         vibeSensor1.setDebounce(Integer.parseInt(config.getProperty("DEBOUNCE")), PinState.LOW, PinState.HIGH);
         vibeSensor1.addListener(vibesensorListener);
 
