@@ -8,7 +8,7 @@ import org.quartz.*;
 /**
  * Created by tloehr on 30.06.17.
  */
-@DisallowConcurrentExecution
+
 public class GametimeIsUpJob implements Job, InterruptableJob {
     public static final String name = "gametimejob1";
     Logger logger = Logger.getLogger(getClass());

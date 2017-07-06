@@ -1,16 +1,17 @@
 package de.flashheart.lara.listeners;
 
 
-import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.event.GpioPinListener;
 import de.flashheart.lara.jobs.DelayedGameStartJob;
 import de.flashheart.lara.jobs.GametimeIsUpJob;
 import de.flashheart.lara.jobs.GametimeNotificationJob;
 import de.flashheart.lara.jobs.PinHandlerRGBJob;
+import de.flashheart.lara.tools.MyGpioPinDigitalOutput;
 import de.flashheart.lara.tools.MyGpioPinPwmOutput;
 import de.flashheart.lara.tools.RGBBean;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.quartz.*;
 
 import java.awt.*;
@@ -41,7 +42,7 @@ public class GamemodeListener implements GpioPinListener {
     Logger logger = Logger.getLogger(getClass());
     private int buttonPressedCount = 1;
     private int gamemode, gamemodeToStartAfterDelay;
-    private final GpioPinDigitalOutput pinSiren;
+    private final MyGpioPinDigitalOutput pinSiren;
     private final MyGpioPinPwmOutput pwmRed;
     private final MyGpioPinPwmOutput pwmGreen;
     private final MyGpioPinPwmOutput pwmBlue;
@@ -56,9 +57,11 @@ public class GamemodeListener implements GpioPinListener {
     private JobKey rgbLEDJobKey;
 
     private final long gameLengthInMillis;
-    private long gameStartedAt, gametimer, gametimeRemaining;
+    private long gameStartedAt, gametimer, gametimeRemaining, gametimeRemainingInPercent, lastGametimeRemainingInPercent = -1;
+    private int minutes, tenseconds;
+    private Color color;
 
-    public GamemodeListener(GpioPinDigitalOutput pinSiren, MyGpioPinPwmOutput pwmRed, MyGpioPinPwmOutput pwmGreen, MyGpioPinPwmOutput pwmBlue, Scheduler scheduler, int delayInSeconds, int gameLengthInSeconds, long HEALTH) throws SchedulerException {
+    public GamemodeListener(MyGpioPinDigitalOutput pinSiren, MyGpioPinPwmOutput pwmRed, MyGpioPinPwmOutput pwmGreen, MyGpioPinPwmOutput pwmBlue, Scheduler scheduler, int delayInSeconds, int gameLengthInSeconds, long HEALTH) throws SchedulerException {
         this.pinSiren = pinSiren;
         this.pwmRed = pwmRed;
         this.pwmGreen = pwmGreen;
@@ -93,10 +96,11 @@ public class GamemodeListener implements GpioPinListener {
             if (lastpos != pos) {
                 lastpos = pos;
 
-                ArrayList<RGBBean> ledpattern = new ArrayList<>();
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, colors[pos], 500l));
-
-                setRGBLedJob(ledpattern, Integer.MAX_VALUE);
+//                ArrayList<RGBBean> ledpattern = new ArrayList<>();
+//                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, colors[pos], 500l));
+                color = colors[pos];
+                setRGBLedJob();
+//                gametimeNotification();
             }
 
         }
@@ -111,6 +115,13 @@ public class GamemodeListener implements GpioPinListener {
         if (gameStartedAt == -1l) return;
         gametimer = System.currentTimeMillis() - gameStartedAt;
         gametimeRemaining = gameStartedAt + gameLengthInMillis - gametimer;
+//        gametimeRemainingInPercent = new BigDecimal(gametimer).divide(new BigDecimal(gameLengthInMillis), 2, BigDecimal.ROUND_UP).multiply(new BigDecimal(100)).setScale(-1, RoundingMode.HALF_UP).longValue();
+        DateTime dt = new DateTime(gameLengthInMillis - gametimer, DateTimeZone.UTC);
+
+        minutes = dt.getMinuteOfHour();
+        tenseconds = dt.getSecondOfMinute() / 10;
+
+        setRGBLedJob();
     }
 
 
@@ -163,7 +174,6 @@ public class GamemodeListener implements GpioPinListener {
                 ArrayList<RGBBean> ledpattern = new ArrayList<>();
                 ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLUE, 1000l));
                 ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.black, 1000l));
-
                 setRGBLedJob(ledpattern, Integer.MAX_VALUE);
                 break;
             }
@@ -181,7 +191,6 @@ public class GamemodeListener implements GpioPinListener {
                 ArrayList<RGBBean> ledpattern = new ArrayList<>();
                 ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.RED, 1000l));
                 ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.GREEN, 1000l));
-
                 setRGBLedJob(ledpattern, Integer.MAX_VALUE);
 
                 setupDelayJobs();
@@ -197,11 +206,8 @@ public class GamemodeListener implements GpioPinListener {
                         "                                                                       ");
                 gameStartedAt = System.currentTimeMillis();
 
-                ArrayList<RGBBean> ledpattern = new ArrayList<>();
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.green, gameLengthInMillis/1000)); // todo: das ist nicht gut
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.black, gameLengthInMillis/1000));
-
-                setRGBLedJob(ledpattern, Integer.MAX_VALUE);
+                color = Color.green;
+                gametimeNotification();
 
                 setupGametimerJobs();
                 setupGameTimeIsUpJobs();
@@ -236,6 +242,9 @@ public class GamemodeListener implements GpioPinListener {
                         "  \\____/_/   \\_\\_|  |_|_____| |_| \\_\\\\___/|_| \\_|_| \\_|___|_| \\_|\\____| /_/   \\_\\___/  |_| \\___/|_| \\_\\_____|_| /_/   \\_\\___|_| \\_\\\n" +
                         "                                                                                                                                   ");
                 gameStartedAt = System.currentTimeMillis();
+                color = Color.green;
+                gametimeNotification();
+
                 setupGametimerJobs();
                 setupGameTimeIsUpJobs();
                 break;
@@ -248,6 +257,11 @@ public class GamemodeListener implements GpioPinListener {
                         "   | |/ ___ \\|  _ <| |_| | |___  | |   | |_| | |___|  _| | |___| |\\  | |_| | |___| |_| |\n" +
                         "   |_/_/   \\_\\_| \\_\\\\____|_____| |_|   |____/|_____|_|   |_____|_| \\_|____/|_____|____/ \n" +
                         "                                                                                        ");
+                try {
+                    deleteAllJobs();
+                } catch (SchedulerException e) {
+                    e.printStackTrace();
+                }
                 gameStartedAt = -1l;
                 gametimer = -1l;
                 gametimeRemaining = -1l;
@@ -261,6 +275,11 @@ public class GamemodeListener implements GpioPinListener {
                         "   | |/ ___ \\|  _ <| |_| | |___  | |   | |_| | |___ ___) || | |  _ <| |_| || | | |___| |_| |\n" +
                         "   |_/_/   \\_\\_| \\_\\\\____|_____| |_|   |____/|_____|____/ |_| |_| \\_\\\\___/ |_| |_____|____/ \n" +
                         "                                                                                             ");
+                try {
+                    deleteAllJobs();
+                } catch (SchedulerException e) {
+                    e.printStackTrace();
+                }
                 gameStartedAt = -1l;
                 gametimer = -1l;
                 gametimeRemaining = -1l;
@@ -272,6 +291,19 @@ public class GamemodeListener implements GpioPinListener {
         }
     }
 
+    private void deleteAllJobs() throws SchedulerException {
+        deleteTimerJobs();
+        if (gametimerJobKey != null) {
+            scheduler.interrupt(gametimerJobKey);
+            scheduler.deleteJob(gametimerJobKey);
+            gametimerJobKey = null;
+        }
+        if (rgbLEDJobKey != null) {
+            scheduler.interrupt(rgbLEDJobKey);
+            scheduler.deleteJob(rgbLEDJobKey);
+            rgbLEDJobKey = null;
+        }
+    }
     private void deleteTimerJobs() throws SchedulerException {
         if (delayJobKey != null) {
             scheduler.interrupt(delayJobKey);
@@ -283,25 +315,31 @@ public class GamemodeListener implements GpioPinListener {
             scheduler.deleteJob(gametimeIsUpJobKey);
             gametimeIsUpJobKey = null;
         }
-        if (gametimerJobKey != null) {
-            scheduler.interrupt(gametimerJobKey);
-            scheduler.deleteJob(gametimerJobKey);
-            gametimerJobKey = null;
-        }
+//        if (gametimerJobKey != null) {
+//            scheduler.interrupt(gametimerJobKey);
+//            scheduler.deleteJob(gametimerJobKey);
+//            gametimerJobKey = null;
+//        }
     }
 
     private void setupGametimerJobs() {
         try {
-            deleteTimerJobs();
+            if (gametimerJobKey != null) {
+                scheduler.interrupt(gametimerJobKey);
+                scheduler.deleteJob(gametimerJobKey);
+                gametimerJobKey = null;
+            }
+
             JobDetail job = newJob(GametimeNotificationJob.class)
                     .withIdentity(GametimeNotificationJob.name, "group1")
                     .build();
-            gametimeIsUpJobKey = job.getKey();
+            gametimerJobKey = job.getKey();
 
             // Trigger the job to run now, and then repeat every 40 seconds
             Trigger trigger = newTrigger()
                     .withIdentity(GametimeNotificationJob.name + "-trigger", "group1")
-                    .startAt(new DateTime().plusSeconds(gameLengthInSeconds).toDate())
+                    .withSchedule(simpleSchedule().withRepeatCount(Integer.MAX_VALUE).withIntervalInSeconds(10))
+                    .startNow()
                     .build();
             scheduler.scheduleJob(job, trigger);
         } catch (SchedulerException e) {
@@ -322,7 +360,7 @@ public class GamemodeListener implements GpioPinListener {
             // Trigger the job to run now, and then repeat every 40 seconds
             Trigger trigger = newTrigger()
                     .withIdentity(GametimeIsUpJob.name + "-trigger", "group1")
-                    .startAt(new DateTime().plusSeconds(gameLengthInSeconds).toDate())
+                    .startAt(new DateTime().plusMillis(new Long(gameLengthInMillis).intValue()).toDate())
                     .build();
             scheduler.scheduleJob(job, trigger);
         } catch (SchedulerException e) {
@@ -374,6 +412,56 @@ public class GamemodeListener implements GpioPinListener {
             Trigger trigger = newTrigger()
                     .withIdentity("rgbhandler1-trigger", "group1")
                     .withSchedule(simpleSchedule().withRepeatCount(repeat).withIntervalInMilliseconds(1))
+                    .startNow()
+                    .build();
+
+            scheduler.scheduleJob(job, trigger);
+
+        } catch (SchedulerException e) {
+            e.printStackTrace();
+            logger.fatal(e);
+            System.exit(0);
+        }
+
+    }
+
+
+    private void setRGBLedJob() {
+        try {
+
+            if (rgbLEDJobKey != null) {
+                scheduler.interrupt(rgbLEDJobKey);
+                scheduler.deleteJob(rgbLEDJobKey);
+                rgbLEDJobKey = null;
+            }
+
+
+            ArrayList<RGBBean> ledpattern = new ArrayList<>();
+            for (int min = 0; min < minutes; min++) {
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, color, 1000l));
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLACK, 500l));
+            }
+            for (int sec = 0; sec < tenseconds; sec++) {
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, color, 500l));
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLACK, 500l));
+            }
+            ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLACK, 3000l));
+
+            logger.debug("remaining: " + minutes + ":" + tenseconds);
+            logger.debug(color);
+
+            JobDetail job = newJob(PinHandlerRGBJob.class)
+                    .withIdentity("rgbhandler1", "group1")
+                    .build();
+
+            rgbLEDJobKey = job.getKey();
+
+            job.getJobDataMap().put("ledpattern", ledpattern);
+
+            // Trigger the job to run now, and then repeat every 40 seconds
+            Trigger trigger = newTrigger()
+                    .withIdentity("rgbhandler1-trigger", "group1")
+                    .withSchedule(simpleSchedule().withRepeatCount(Integer.MAX_VALUE).withIntervalInMilliseconds(1))
                     .startNow()
                     .build();
 

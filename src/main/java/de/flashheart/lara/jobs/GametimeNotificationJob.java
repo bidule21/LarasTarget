@@ -8,7 +8,7 @@ import org.quartz.*;
 /**
  * Created by tloehr on 30.06.17.
  */
-@DisallowConcurrentExecution
+
 public class GametimeNotificationJob implements Job, InterruptableJob {
     public static final String name = "gametimerjob1";
 
@@ -20,11 +20,11 @@ public class GametimeNotificationJob implements Job, InterruptableJob {
         GamemodeListener gamemodeListener = null;
         try {
             logger.setLevel((Level) jobExecutionContext.getScheduler().getContext().get("loglevel"));
-            logger.debug("Starting the Game");
+            logger.debug("gametimerjob1 running");
             gamemodeListener = (GamemodeListener) jobExecutionContext.getScheduler().getContext().get("gamemodelistener");
-            gamemodeListener.startGame();
+            gamemodeListener.gametimeNotification();
         } catch (SchedulerException e) {
-            logger.fatal(e);
+            e.printStackTrace();
             System.exit(0);
         }
 

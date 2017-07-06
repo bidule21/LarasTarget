@@ -5,6 +5,7 @@ import de.flashheart.lara.listeners.GameButtonListener;
 import de.flashheart.lara.listeners.GamemodeListener;
 import de.flashheart.lara.listeners.VibesensorListener;
 import de.flashheart.lara.swing.FrameDebug;
+import de.flashheart.lara.tools.MyGpioPinDigitalOutput;
 import de.flashheart.lara.tools.MyGpioPinPwmOutput;
 import de.flashheart.lara.tools.SortedProperties;
 import de.flashheart.lara.tools.Tools;
@@ -139,7 +140,7 @@ public class Main {
         config.put("vibeSensor1", "GPIO 4");
         config.put("HEALTH_CHANGE_PER_HIT", "-1");
         config.put("GAME_LENGTH_IN_SECONDS", "60");
-        config.put("DELAY_BEFORE_GAME_STARTS_IN_SECONDS", "5");
+        config.put("DELAY_BEFORE_GAME_STARTS_IN_SECONDS", "10");
         config.put("MAX_HEALTH", "1000");
         config.put("DEBOUNCE", "15");
 
@@ -160,8 +161,9 @@ public class Main {
         MyGpioPinPwmOutput pwmRed = new MyGpioPinPwmOutput("pwmRed");
         MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput("pwmGreen");
         MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput("pwmBlue");
+        MyGpioPinDigitalOutput gpioSiren = new MyGpioPinDigitalOutput("Siren");
 
-        FrameDebug frameDebug = new FrameDebug(new GamemodeListener(null, pwmRed, pwmGreen, pwmBlue, scheduler,
+        FrameDebug frameDebug = new FrameDebug(new GamemodeListener(gpioSiren, pwmRed, pwmGreen, pwmBlue, scheduler,
                 Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
                 Integer.parseInt(config.getProperty("GAME_LENGTH_IN_SECONDS")),
                 Long.parseLong(config.getProperty("MAX_HEALTH"))
@@ -186,7 +188,7 @@ public class Main {
         MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinGreen));
         MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput(GPIO.provisionSoftPwmOutputPin(pinBlue));
 
-        GpioPinDigitalOutput gpioSiren = GPIO.provisionDigitalOutputPin(pinSiren, "Siren", PinState.LOW);
+        MyGpioPinDigitalOutput gpioSiren = new MyGpioPinDigitalOutput(GPIO.provisionDigitalOutputPin(pinSiren, "Siren", PinState.LOW));
 
         GamemodeListener gamemodeListener = new GamemodeListener(gpioSiren, pwmRed, pwmGreen, pwmBlue, scheduler,
                 Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
