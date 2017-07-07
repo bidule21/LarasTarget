@@ -2,7 +2,7 @@ package de.flashheart.lara;
 
 import com.pi4j.io.gpio.*;
 import de.flashheart.lara.listeners.GameButtonListener;
-import de.flashheart.lara.listeners.GamemodeListener;
+import de.flashheart.lara.handlers.GamemodeHandler;
 import de.flashheart.lara.listeners.VibesensorListener;
 import de.flashheart.lara.swing.FrameDebug;
 import de.flashheart.lara.tools.MyGpioPinDigitalOutput;
@@ -37,7 +37,7 @@ public class Main {
 //    private static GpioPinDigitalInput vibeSensor1;
 
 //    private static VibesensorListener vibesensorListener;
-//    private static GamemodeListener gamemodeListener;
+//    private static GamemodeHandler gamemodeListener;
 
 
     /**
@@ -139,14 +139,14 @@ public class Main {
         // todo: configreader needed
         config.put("vibeSensor1", "GPIO 4");
         config.put("HEALTH_CHANGE_PER_HIT", "-1");
-        config.put("GAME_LENGTH_IN_SECONDS", "60");
-        config.put("DELAY_BEFORE_GAME_STARTS_IN_SECONDS", "10");
+        config.put("GAME_LENGTH_IN_SECONDS", "180");
+        config.put("DELAY_BEFORE_GAME_STARTS_IN_SECONDS", "1");
         config.put("MAX_HEALTH", "1000");
         config.put("DEBOUNCE", "15");
 
-        config.put("pwmRed", "GPIO 0");
-        config.put("pwmGreen", "GPIO 3");
-        config.put("pwmBlue", "GPIO 5");
+        config.put("red", "GPIO 0");
+        config.put("green", "GPIO 3");
+        config.put("blue", "GPIO 5");
 
         config.put("pinSiren", "GPIO 6");
         config.put("pinGameModeButton", "GPIO 22");
@@ -158,19 +158,23 @@ public class Main {
     private static void initSwingFrame() throws Exception {
         if (Tools.isArm()) return;
 
-        MyGpioPinPwmOutput pwmRed = new MyGpioPinPwmOutput("pwmRed");
-        MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput("pwmGreen");
-        MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput("pwmBlue");
+
+        FrameDebug frameDebug = new FrameDebug();
+
+        MyGpioPinPwmOutput pwmRed = new MyGpioPinPwmOutput("red", frameDebug);
+        MyGpioPinPwmOutput pwmGreen = new MyGpioPinPwmOutput("green", frameDebug);
+        MyGpioPinPwmOutput pwmBlue = new MyGpioPinPwmOutput("blue", frameDebug);
         MyGpioPinDigitalOutput gpioSiren = new MyGpioPinDigitalOutput("Siren");
 
-        FrameDebug frameDebug = new FrameDebug(new GamemodeListener(gpioSiren, pwmRed, pwmGreen, pwmBlue, scheduler,
+        frameDebug.setGamemodeHandler(new GamemodeHandler(gpioSiren, pwmRed, pwmGreen, pwmBlue, scheduler,
                 Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
                 Integer.parseInt(config.getProperty("GAME_LENGTH_IN_SECONDS")),
                 Long.parseLong(config.getProperty("MAX_HEALTH"))
         ));
+
         frameDebug.pack();
-        frameDebug.setVisible(true);
         frameDebug.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frameDebug.setVisible(true);
     }
 
 
@@ -178,9 +182,9 @@ public class Main {
         if (!Tools.isArm()) return;
         GPIO = GpioFactory.getInstance();
 
-        Pin pinRed = RaspiPin.getPinByName(config.getProperty("pwmRed"));
-        Pin pinGreen = RaspiPin.getPinByName(config.getProperty("pwmGreen"));
-        Pin pinBlue = RaspiPin.getPinByName(config.getProperty("pwmBlue"));
+        Pin pinRed = RaspiPin.getPinByName(config.getProperty("red"));
+        Pin pinGreen = RaspiPin.getPinByName(config.getProperty("green"));
+        Pin pinBlue = RaspiPin.getPinByName(config.getProperty("blue"));
 
         Pin pinSiren = RaspiPin.getPinByName(config.getProperty("pinSiren"));
 
@@ -190,13 +194,13 @@ public class Main {
 
         MyGpioPinDigitalOutput gpioSiren = new MyGpioPinDigitalOutput(GPIO.provisionDigitalOutputPin(pinSiren, "Siren", PinState.LOW));
 
-        GamemodeListener gamemodeListener = new GamemodeListener(gpioSiren, pwmRed, pwmGreen, pwmBlue, scheduler,
+        GamemodeHandler gamemodeHandler = new GamemodeHandler(gpioSiren, pwmRed, pwmGreen, pwmBlue, scheduler,
                 Integer.parseInt(config.getProperty("DELAY_BEFORE_GAME_STARTS_IN_SECONDS")),
                 Integer.parseInt(config.getProperty("GAME_LENGTH_IN_SECONDS")),
                 Long.parseLong(config.getProperty("MAX_HEALTH"))
         );
 
-        VibesensorListener vibesensorListener = new VibesensorListener(gamemodeListener, logLevel, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
+        VibesensorListener vibesensorListener = new VibesensorListener(gamemodeHandler, logLevel, Long.parseLong(config.getProperty("HEALTH_CHANGE_PER_HIT")));
 
 
         Pin pinVibeSensor1 = RaspiPin.getPinByName(config.getProperty("vibeSensor1"));
@@ -206,7 +210,7 @@ public class Main {
 
         GpioPinDigitalInput gamebutton = GPIO.provisionDigitalInputPin(RaspiPin.getPinByName(config.getProperty("pinGameModeButton")), "gamemodeButton", PinPullResistance.PULL_UP);
         GameButtonListener gameButtonListener = new GameButtonListener(logLevel);
-        gameButtonListener.addListener(gamemodeListener);
+        gameButtonListener.addListener(gamemodeHandler);
         gamebutton.addListener(gameButtonListener);
 
 

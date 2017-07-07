@@ -2,7 +2,7 @@ package de.flashheart.lara.swing;
 
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent;
-import de.flashheart.lara.listeners.GamemodeListener;
+import de.flashheart.lara.handlers.GamemodeHandler;
 import de.flashheart.lara.listeners.VibesensorListener;
 
 import javax.swing.*;
@@ -14,19 +14,25 @@ import java.util.ArrayList;
  */
 public class FrameDebug extends JFrame {
     private java.util.List<VibesensorListener> listeners = new ArrayList<>();
-    private final GamemodeListener gamemodeListener;
+
+    public void setGamemodeHandler(GamemodeHandler gamemodeHandler) {
+        this.gamemodeHandler = gamemodeHandler;
+    }
+
+    private GamemodeHandler gamemodeHandler;
+    private JPanel pnlRGB;
 //    private final long HEALTH_CHANGE_PER_HIT;
 
-    public FrameDebug(GamemodeListener gamemodeListener) throws HeadlessException {
+    public FrameDebug() throws HeadlessException {
         super("Lara's Target Debug Window");
-        this.gamemodeListener = gamemodeListener;
+//        this.gamemodeHandler = gamemodeHandler;
 //        this.HEALTH_CHANGE_PER_HIT = HEALTH_CHANGE_PER_HIT;
 
         BoxLayout boxLayout = new BoxLayout(getContentPane(), BoxLayout.PAGE_AXIS);
 
         setLayout(boxLayout);
         JButton btn = new JButton("GameModeButton");
-        btn.addActionListener(e -> gamemodeListener.gamemodeButtonPressed());
+        btn.addActionListener(e -> gamemodeHandler.gamemodeButtonPressed());
         add(btn);
 
         // das hier simuliert einen Treffer
@@ -38,32 +44,34 @@ public class FrameDebug extends JFrame {
         });
         add(btn2);
 
-//        JPanel pnl = new JPanel();
-//        pnl.setLayout(new BoxLayout(pnl, BoxLayout.PAGE_AXIS));
-//        for (int i = 0; i < 100; i++) {
-//            Color color = getColor(new BigDecimal(i));
-////            pwmRed.setPwm(color.getRed());
-////            pwmGreen.setPwm(color.getGreen());
-////            pwmBlue.setPwm(color.getBlue());
-//
-//            SwingUtilities.invokeLater(new Runnable() {
-//                @Override
-//                public void run() {
-//                    JLabel lbl = new JLabel("COLOR");
-//                    lbl.setForeground(color);
-//                    pnl.add(lbl);
-//                }
-//            });
-//        }
-//
-//        add(new JScrollPane(pnl));
+        JLabel lbl = new JLabel("RGB LEDs");
+        lbl.setForeground(Color.WHITE);
+        pnlRGB = new JPanel();
+        pnlRGB.add(lbl);
+//        pnlRGB.setOpaque(true);
+        add(pnlRGB);
     }
 
 
-    public void addListener(VibesensorListener listener) {
-        listeners.add(listener);
-    }
+    public void setRGB(Color baseColor, int value) {
 
-    ;
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                Color color = pnlRGB.getBackground();
+                Color newColor = color;
+                if (baseColor.equals(Color.RED)) {
+                    newColor = new Color(value, color.getGreen(), color.getBlue());
+                } else if (baseColor.equals(Color.GREEN)) {
+                    newColor = new Color(color.getRed(), value, color.getBlue());
+                } else if (baseColor.equals(Color.BLUE)) {
+                    newColor = new Color(color.getRed(), color.getGreen(), value);
+                }
+                pnlRGB.setBackground(newColor);
+                revalidate();
+                repaint();
+            }
+        });
+    }
 
 }

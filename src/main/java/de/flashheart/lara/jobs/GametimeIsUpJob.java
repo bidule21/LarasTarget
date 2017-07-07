@@ -1,6 +1,6 @@
 package de.flashheart.lara.jobs;
 
-import de.flashheart.lara.listeners.GamemodeListener;
+import de.flashheart.lara.handlers.GamemodeHandler;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.quartz.*;
@@ -17,12 +17,12 @@ public class GametimeIsUpJob implements Job, InterruptableJob {
     public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
         Logger logger = Logger.getLogger(getClass());
 
-        GamemodeListener gamemodeListener = null;
+        GamemodeHandler gamemodeHandler = null;
         try {
             logger.setLevel((Level) jobExecutionContext.getScheduler().getContext().get("loglevel"));
             logger.debug("Starting the Game");
-            gamemodeListener = (GamemodeListener) jobExecutionContext.getScheduler().getContext().get("gamemodelistener");
-            gamemodeListener.targetDefended();
+            gamemodeHandler = (GamemodeHandler) jobExecutionContext.getScheduler().getContext().get("gamemodelistener");
+            gamemodeHandler.targetDefended();
         } catch (SchedulerException e) {
             logger.fatal(e);
             System.exit(0);

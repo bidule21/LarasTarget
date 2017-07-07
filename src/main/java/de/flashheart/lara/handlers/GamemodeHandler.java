@@ -1,4 +1,4 @@
-package de.flashheart.lara.listeners;
+package de.flashheart.lara.handlers;
 
 
 import com.pi4j.io.gpio.event.GpioPinListener;
@@ -25,7 +25,7 @@ import static org.quartz.TriggerBuilder.newTrigger;
 /**
  * Created by tloehr on 29.06.17.
  */
-public class GamemodeListener implements GpioPinListener {
+public class GamemodeHandler implements GpioPinListener {
     public static final int GAME_PRE_GAME = 0;
     public static final int GAME_ABOUT_TO_RUN = 1;
     public static final int GAME_RUNNING = 2;
@@ -58,10 +58,12 @@ public class GamemodeListener implements GpioPinListener {
 
     private final long gameLengthInMillis;
     private long gameStartedAt, gametimer, gametimeRemaining, gametimeRemainingInPercent, lastGametimeRemainingInPercent = -1;
-    private int minutes, tenseconds;
+    private int minutes;
     private Color color;
+    private  ArrayList<RGBBean> ledpattern ;
 
-    public GamemodeListener(MyGpioPinDigitalOutput pinSiren, MyGpioPinPwmOutput pwmRed, MyGpioPinPwmOutput pwmGreen, MyGpioPinPwmOutput pwmBlue, Scheduler scheduler, int delayInSeconds, int gameLengthInSeconds, long HEALTH) throws SchedulerException {
+    public GamemodeHandler(MyGpioPinDigitalOutput pinSiren, MyGpioPinPwmOutput pwmRed, MyGpioPinPwmOutput pwmGreen, MyGpioPinPwmOutput pwmBlue, Scheduler scheduler, int delayInSeconds, int gameLengthInSeconds, long HEALTH) throws SchedulerException {
+        ledpattern = new ArrayList<>();
         this.pinSiren = pinSiren;
         this.pwmRed = pwmRed;
         this.pwmGreen = pwmGreen;
@@ -98,8 +100,17 @@ public class GamemodeListener implements GpioPinListener {
 
 //                ArrayList<RGBBean> ledpattern = new ArrayList<>();
 //                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, colors[pos], 500l));
+
+
+                ArrayList<RGBBean> ledpattern = new ArrayList<>();
+                for (int min = 0; min < minutes; min++) {
+                    ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, colors[pos], 500l));
+                    ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLACK, 100l));
+                }
+                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLACK, 1500l));
+
                 color = colors[pos];
-                setRGBLedJob();
+                setRGBLedJob(colors[pos]);
 //                gametimeNotification();
             }
 
@@ -116,10 +127,10 @@ public class GamemodeListener implements GpioPinListener {
         gametimer = System.currentTimeMillis() - gameStartedAt;
         gametimeRemaining = gameStartedAt + gameLengthInMillis - gametimer;
 //        gametimeRemainingInPercent = new BigDecimal(gametimer).divide(new BigDecimal(gameLengthInMillis), 2, BigDecimal.ROUND_UP).multiply(new BigDecimal(100)).setScale(-1, RoundingMode.HALF_UP).longValue();
-        DateTime dt = new DateTime(gameLengthInMillis - gametimer, DateTimeZone.UTC);
-
+        DateTime dt = new DateTime(gameLengthInMillis - gametimer, DateTimeZone.UTC).plusMillis(20);
+        logger.debug(dt);
         minutes = dt.getMinuteOfHour();
-        tenseconds = dt.getSecondOfMinute() / 10;
+//        tenseconds = dt.getSecondOfMinute() / 10;
 
         setRGBLedJob();
     }
@@ -205,11 +216,12 @@ public class GamemodeListener implements GpioPinListener {
                         "  \\____/_/   \\_\\_|  |_|_____| |_| \\_\\\\___/|_| \\_|_| \\_|___|_| \\_|\\____|\n" +
                         "                                                                       ");
                 gameStartedAt = System.currentTimeMillis();
-
                 color = Color.green;
-                gametimeNotification();
-
                 setupGametimerJobs();
+
+//                gametimeNotification();
+
+
                 setupGameTimeIsUpJobs();
                 break;
             }
@@ -243,7 +255,7 @@ public class GamemodeListener implements GpioPinListener {
                         "                                                                                                                                   ");
                 gameStartedAt = System.currentTimeMillis();
                 color = Color.green;
-                gametimeNotification();
+                setRGBLedJob();
 
                 setupGametimerJobs();
                 setupGameTimeIsUpJobs();
@@ -304,6 +316,7 @@ public class GamemodeListener implements GpioPinListener {
             rgbLEDJobKey = null;
         }
     }
+
     private void deleteTimerJobs() throws SchedulerException {
         if (delayJobKey != null) {
             scheduler.interrupt(delayJobKey);
@@ -338,7 +351,7 @@ public class GamemodeListener implements GpioPinListener {
             // Trigger the job to run now, and then repeat every 40 seconds
             Trigger trigger = newTrigger()
                     .withIdentity(GametimeNotificationJob.name + "-trigger", "group1")
-                    .withSchedule(simpleSchedule().withRepeatCount(Integer.MAX_VALUE).withIntervalInSeconds(10))
+                    .withSchedule(simpleSchedule().withRepeatCount(Integer.MAX_VALUE).withIntervalInSeconds(30))
                     .startNow()
                     .build();
             scheduler.scheduleJob(job, trigger);
@@ -390,82 +403,70 @@ public class GamemodeListener implements GpioPinListener {
         }
     }
 
-    // Pattern: redValue, greenValue, blueValue, hold4ms usw.
-    private void setRGBLedJob(Object pattern, int repeat) {
-        try {
-
-            if (rgbLEDJobKey != null) {
-                scheduler.interrupt(rgbLEDJobKey);
-                scheduler.deleteJob(rgbLEDJobKey);
-                rgbLEDJobKey = null;
-            }
-
-            JobDetail job = newJob(PinHandlerRGBJob.class)
-                    .withIdentity("rgbhandler1", "group1")
-                    .build();
-
-            rgbLEDJobKey = job.getKey();
-
-            job.getJobDataMap().put("ledpattern", pattern);
-
-            // Trigger the job to run now, and then repeat every 40 seconds
-            Trigger trigger = newTrigger()
-                    .withIdentity("rgbhandler1-trigger", "group1")
-                    .withSchedule(simpleSchedule().withRepeatCount(repeat).withIntervalInMilliseconds(1))
-                    .startNow()
-                    .build();
-
-            scheduler.scheduleJob(job, trigger);
-
-        } catch (SchedulerException e) {
-            e.printStackTrace();
-            logger.fatal(e);
-            System.exit(0);
-        }
-
-    }
+//    // Pattern: redValue, greenValue, blueValue, hold4ms usw.
+//    private void setRGBLedJob(Object pattern, int repeat) {
+//        try {
+//
+//            if (rgbLEDJobKey != null) {
+//                scheduler.interrupt(rgbLEDJobKey);
+//                scheduler.deleteJob(rgbLEDJobKey);
+//                rgbLEDJobKey = null;
+//            }
+//
+//            JobDetail job = newJob(PinHandlerRGBJob.class)
+//                    .withIdentity("rgbhandler1", "group1")
+//                    .build();
+//
+//            rgbLEDJobKey = job.getKey();
+//
+//            job.getJobDataMap().put("ledpattern", pattern);
+//
+//            // Trigger the job to run now, and then repeat every 40 seconds
+//            Trigger trigger = newTrigger()
+//                    .withIdentity("rgbhandler1-trigger", "group1")
+//                    .withSchedule(simpleSchedule().withRepeatCount(repeat).withIntervalInMilliseconds(1))
+//                    .startNow()
+//                    .build();
+//
+//            scheduler.scheduleJob(job, trigger);
+//
+//        } catch (SchedulerException e) {
+//            e.printStackTrace();
+//            logger.fatal(e);
+//            System.exit(0);
+//        }
+//
+//    }
 
 
     private void setRGBLedJob() {
         try {
-
+            // todo: lösen mit einer Pattern-Klasse die auf Farbänderungen reagieren kann.
             if (rgbLEDJobKey != null) {
                 scheduler.interrupt(rgbLEDJobKey);
-                scheduler.deleteJob(rgbLEDJobKey);
-                rgbLEDJobKey = null;
+                // todo: geht das ?
+                JobDetail jobDetail = scheduler.getJobDetail(rgbLEDJobKey);
+                jobDetail.getJobDataMap().put("ledpattern", ledpattern);
+                scheduler.addJob(jobDetail, true);
+            } else {
+                JobDetail job = newJob(PinHandlerRGBJob.class)
+                        .withIdentity("rgbhandler1", "group1")
+                        .build();
+
+                rgbLEDJobKey = job.getKey();
+
+                job.getJobDataMap().put("ledpattern", ledpattern);
+
+                // Trigger the job to run now, and then repeat every 40 seconds
+                Trigger trigger = newTrigger()
+                        .withIdentity("rgbhandler1-trigger", "group1")
+                        .withSchedule(simpleSchedule().withRepeatCount(Integer.MAX_VALUE).withIntervalInMilliseconds(1))
+                        .startNow()
+                        .build();
+
+                scheduler.scheduleJob(job, trigger);
             }
 
-
-            ArrayList<RGBBean> ledpattern = new ArrayList<>();
-            for (int min = 0; min < minutes; min++) {
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, color, 1000l));
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLACK, 500l));
-            }
-            for (int sec = 0; sec < tenseconds; sec++) {
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, color, 500l));
-                ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLACK, 500l));
-            }
-            ledpattern.add(new RGBBean(pwmRed, pwmGreen, pwmBlue, Color.BLACK, 3000l));
-
-            logger.debug("remaining: " + minutes + ":" + tenseconds);
-            logger.debug(color);
-
-            JobDetail job = newJob(PinHandlerRGBJob.class)
-                    .withIdentity("rgbhandler1", "group1")
-                    .build();
-
-            rgbLEDJobKey = job.getKey();
-
-            job.getJobDataMap().put("ledpattern", ledpattern);
-
-            // Trigger the job to run now, and then repeat every 40 seconds
-            Trigger trigger = newTrigger()
-                    .withIdentity("rgbhandler1-trigger", "group1")
-                    .withSchedule(simpleSchedule().withRepeatCount(Integer.MAX_VALUE).withIntervalInMilliseconds(1))
-                    .startNow()
-                    .build();
-
-            scheduler.scheduleJob(job, trigger);
 
         } catch (SchedulerException e) {
             e.printStackTrace();

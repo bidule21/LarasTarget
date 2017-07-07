@@ -3,6 +3,7 @@ package de.flashheart.lara.listeners;
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent;
 import com.pi4j.io.gpio.event.GpioPinListenerDigital;
+import de.flashheart.lara.handlers.GamemodeHandler;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
@@ -14,7 +15,7 @@ import java.util.List;
  */
 public class GameButtonListener implements GpioPinListenerDigital {
 
-    private List<GamemodeListener> listeners = new ArrayList<>();
+    private List<GamemodeHandler> listeners = new ArrayList<>();
     Logger logger = Logger.getLogger(getClass());
 
     public GameButtonListener(Level level) {
@@ -22,8 +23,8 @@ public class GameButtonListener implements GpioPinListenerDigital {
         logger.setLevel(level);
     }
 
-    public void addListener(GamemodeListener gamemodeListener) {
-        listeners.add(gamemodeListener);
+    public void addListener(GamemodeHandler gamemodeHandler) {
+        listeners.add(gamemodeHandler);
     }
 
     @Override
@@ -32,7 +33,7 @@ public class GameButtonListener implements GpioPinListenerDigital {
 
         if (event.getState() == PinState.HIGH) {
             logger.debug("Game Button");
-            for (GamemodeListener gl : listeners) {
+            for (GamemodeHandler gl : listeners) {
                 gl.gamemodeButtonPressed();
             }
         }
